@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewCounterMetrics(t *testing.T) {
-	metrics := NewMetrics("test", Counter)
+	metrics := NewMetric("test", Counter)
 
 	assert.NotNil(t, metrics)
 	assert.Equal(t, "test", metrics.ID)
@@ -17,7 +17,7 @@ func TestNewCounterMetrics(t *testing.T) {
 }
 
 func TestNewGaugeMetrics(t *testing.T) {
-	metrics := NewMetrics("test", Counter)
+	metrics := NewMetric("test", Counter)
 
 	assert.NotNil(t, metrics)
 	assert.Equal(t, "test", metrics.ID)

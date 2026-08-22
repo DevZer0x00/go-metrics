@@ -5,24 +5,9 @@ import (
 	"go-metrics/internal/repository"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
-var allowedMetricTypes = map[string]bool{
-	model.Counter: true,
-	model.Gauge:   true,
-}
-
-func NewRouter() *http.ServeMux {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("POST /update", metricUpdateHandler)
-	mux.HandleFunc("POST /update/{path...}", metricUpdateHandler)
-
-	return mux
-}
-
-func metricUpdateHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	metricType, metricName, metricValue := getMetricsParams(r)
 
 	if len(metricName) == 0 {
@@ -30,8 +15,8 @@ func metricUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, exists := allowedMetricTypes[metricType]; !exists || len(metricValue) == 0 {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+	valid := checkMetricType(w, metricType) && checkMetricValue(w, metricValue)
+	if !valid {
 		return
 	}
 
@@ -43,14 +28,14 @@ func metricUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metrics, err := repository.Metrics.GetOrRegisterCounter(metricName)
+		metrics, err := repository.Metric.GetOrRegisterCounter(metricName)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		metrics.UpdateCounter(value)
-		err = repository.Metrics.Save(metrics)
+		err = repository.Metric.Save(metrics)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
@@ -62,14 +47,14 @@ func metricUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metrics, err := repository.Metrics.GetOrRegisterGauge(metricName)
+		metrics, err := repository.Metric.GetOrRegisterGauge(metricName)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		metrics.UpdateGauge(value)
-		err = repository.Metrics.Save(metrics)
+		err = repository.Metric.Save(metrics)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
@@ -78,22 +63,4 @@ func metricUpdateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
 	}
-}
-
-func getMetricsParams(r *http.Request) (string, string, string) {
-	path := strings.Split(r.PathValue("path"), "/")
-
-	metricType := path[0]
-
-	metricName := ""
-	if len(path) >= 2 {
-		metricName = strings.TrimSpace(path[1])
-	}
-
-	metricValue := ""
-	if len(path) >= 3 {
-		metricValue = path[2]
-	}
-
-	return metricType, metricName, metricValue
 }

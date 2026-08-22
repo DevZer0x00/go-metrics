@@ -49,19 +49,20 @@ func main() {
 		if sleepBeforeSend == uint64(reportInterval) {
 			sleepBeforeSend = 0
 
-			for _, url = range urls {
+			for _, url = range toSend {
 				request, err := http.NewRequest(http.MethodPost, url, nil)
 				if err != nil {
 					panic(err)
 				}
 
-				_, err = client.Do(request)
+				resp, err := client.Do(request)
 				if err != nil {
 					panic(err)
 				}
+				defer resp.Body.Close()
 			}
 
-			slices.Delete(toSend, 0, len(toSend))
+			toSend = slices.Delete(toSend, 0, len(toSend))
 			toSend = toSend[:0]
 		}
 	}
