@@ -196,13 +196,13 @@ func TestGetMetricHandler(t *testing.T) {
 
 func TestAllMetricsHandler(t *testing.T) {
 	rep := repository.Metric
-	metric1, _ := repository.Metric.GetOrRegisterCounter("counter1")
-	metric2, _ := repository.Metric.GetOrRegisterCounter("counter2")
-	metric3, _ := repository.Metric.GetOrRegisterGauge("gauge1")
+	metric1, _ := repository.Metric.GetOrRegister(model.Counter, "counter1")
+	metric2, _ := repository.Metric.GetOrRegister(model.Counter, "counter2")
+	metric3, _ := repository.Metric.GetOrRegister(model.Gauge, "gauge1")
 
-	metric1.UpdateCounter(100)
-	metric2.UpdateCounter(200)
-	metric3.UpdateGauge(12.45)
+	metric1.UpdateDelta(100)
+	metric2.UpdateDelta(200)
+	metric3.UpdateValue(12.45)
 	rep.Save(metric1)
 	rep.Save(metric2)
 	rep.Save(metric3)

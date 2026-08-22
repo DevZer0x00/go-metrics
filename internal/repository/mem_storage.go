@@ -18,27 +18,25 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) GetOrRegisterCounter(name string) (*model.Metric, error) {
-	hash := model.GetMetricHash(name)
+func (ms *MemStorage) getMetricMapByType(mtype string) map[string]*model.Metric {
+	var metricMap map[string]*model.Metric
 
-	metrics, ok := ms.counter[hash]
-	if !ok {
-		metrics = model.NewMetric(name, model.Counter)
-		err := ms.Save(metrics)
-		if err != nil {
-			return nil, err
-		}
+	switch mtype {
+	case "counter":
+		metricMap = ms.counter
+	case "gauge":
+		metricMap = ms.gauge
 	}
 
-	return metrics, nil
+	return metricMap
 }
 
-func (ms *MemStorage) GetOrRegisterGauge(name string) (*model.Metric, error) {
+func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
 	hash := model.GetMetricHash(name)
 
-	metrics, ok := ms.gauge[hash]
+	metrics, ok := ms.getMetricMapByType(mtype)[hash]
 	if !ok {
-		metrics = model.NewMetric(name, model.Gauge)
+		metrics = model.NewMetric(name, mtype)
 		err := ms.Save(metrics)
 		if err != nil {
 			return nil, err
@@ -49,26 +47,14 @@ func (ms *MemStorage) GetOrRegisterGauge(name string) (*model.Metric, error) {
 }
 
 func (ms *MemStorage) Save(metrics *model.Metric) error {
-	switch metrics.MType {
-	case model.Gauge:
-		ms.gauge[metrics.Hash] = metrics
-	case model.Counter:
-		ms.counter[metrics.Hash] = metrics
-	}
+	ms.getMetricMapByType(metrics.MType)[metrics.Hash] = metrics
 
 	return nil
 }
 
-func (ms *MemStorage) HasCounter(name string) (bool, error) {
+func (ms *MemStorage) Has(mtype, name string) (bool, error) {
 	hash := model.GetMetricHash(name)
-	_, ok := ms.counter[hash]
-
-	return ok, nil
-}
-
-func (ms *MemStorage) HasGauge(name string) (bool, error) {
-	hash := model.GetMetricHash(name)
-	_, ok := ms.gauge[hash]
+	_, ok := ms.getMetricMapByType(mtype)[hash]
 
 	return ok, nil
 }

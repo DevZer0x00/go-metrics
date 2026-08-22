@@ -20,6 +20,12 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metrics, err := repository.Metric.GetOrRegister(metricType, metricName)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	switch metricType {
 	case model.Counter:
 		value, err := strconv.ParseInt(metricValue, 10, 64)
@@ -28,18 +34,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metrics, err := repository.Metric.GetOrRegisterCounter(metricName)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		metrics.UpdateCounter(value)
-		err = repository.Metric.Save(metrics)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+		metrics.UpdateDelta(value)
 	case model.Gauge:
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
@@ -47,13 +42,7 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metrics, err := repository.Metric.GetOrRegisterGauge(metricName)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		metrics.UpdateGauge(value)
+		metrics.UpdateValue(value)
 		err = repository.Metric.Save(metrics)
 		if err != nil {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -61,6 +50,12 @@ func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	err = repository.Metric.Save(metrics)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }

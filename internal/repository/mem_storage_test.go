@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"go-metrics/internal/model"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,9 +12,9 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.counter)
 
-	metrics, err := storage.GetOrRegisterCounter("test")
+	metrics, err := storage.GetOrRegister(model.Counter, "test")
 	require.NoError(t, err)
-	metrics, err = storage.GetOrRegisterCounter("test")
+	metrics, err = storage.GetOrRegister(model.Counter, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.counter, 1)
@@ -29,9 +30,9 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.gauge)
 
-	metrics, err := storage.GetOrRegisterGauge("test")
+	metrics, err := storage.GetOrRegister(model.Gauge, "test")
 	require.NoError(t, err)
-	metrics, err = storage.GetOrRegisterGauge("test")
+	metrics, err = storage.GetOrRegister(model.Gauge, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.gauge, 1)
@@ -46,11 +47,11 @@ func TestGetOrRegisterGauge(t *testing.T) {
 func TestAll(t *testing.T) {
 	storage := NewMemStorage()
 
-	_, err := storage.GetOrRegisterCounter("test1")
+	_, err := storage.GetOrRegister(model.Counter, "test1")
 	require.NoError(t, err)
-	_, err = storage.GetOrRegisterCounter("test2")
+	_, err = storage.GetOrRegister(model.Counter, "test2")
 	require.NoError(t, err)
-	_, err = storage.GetOrRegisterGauge("test1")
+	_, err = storage.GetOrRegister(model.Gauge, "test1")
 	require.NoError(t, err)
 
 	all, err := storage.All()

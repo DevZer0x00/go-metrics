@@ -18,13 +18,13 @@ type Metric struct {
 	Hash  string   `json:"hash,omitempty"`
 }
 
-func (metrics *Metric) UpdateCounter(value int64) int64 {
+func (metrics *Metric) UpdateDelta(value int64) int64 {
 	*metrics.Delta += value
 
 	return *metrics.Delta
 }
 
-func (metrics *Metric) UpdateGauge(value float64) float64 {
+func (metrics *Metric) UpdateValue(value float64) float64 {
 	*metrics.Value = value
 
 	return *metrics.Value

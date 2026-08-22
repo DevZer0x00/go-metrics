@@ -15,49 +15,31 @@ func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if has, err := repository.Metric.Has(metricType, metricName); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	} else if !has {
+		http.NotFound(w, r)
+		return
+	}
+
+	metrics, _ := repository.Metric.GetOrRegister(metricType, metricName)
+
+	var sValue string
+
 	switch metricType {
 	case model.Counter:
-		if has, err := repository.Metric.HasCounter(metricName); err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		} else if !has {
-			http.NotFound(w, r)
-			return
-		}
-
-		metrics, err := repository.Metric.GetOrRegisterCounter(metricName)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		_, err = w.Write([]byte(fmt.Sprintf("%d", *metrics.Delta)))
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+		sValue = fmt.Sprintf("%d", *metrics.Delta)
 	case model.Gauge:
-		if has, err := repository.Metric.HasGauge(metricName); err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		} else if !has {
-			http.NotFound(w, r)
-			return
-		}
-
-		metrics, err := repository.Metric.GetOrRegisterGauge(metricName)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		_, err = w.Write([]byte(fmt.Sprintf("%.3f", *metrics.Value)))
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+		sValue = fmt.Sprintf("%.3f", *metrics.Value)
 	default:
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	_, err := w.Write([]byte(sValue))
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }
@@ -70,20 +52,19 @@ func GetAllMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, metric := range all {
+		var sValue string
+
 		switch metric.MType {
 		case model.Counter:
-			_, err = w.Write([]byte(fmt.Sprintf("%s %d\n", metric.ID, *metric.Delta)))
-			if err != nil {
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
+			sValue = fmt.Sprintf("%d", *metric.Delta)
 		case model.Gauge:
-			_, err = w.Write([]byte(fmt.Sprintf("%s %.3f\n", metric.ID, *metric.Value)))
-			if err != nil {
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
+			sValue = fmt.Sprintf("%.3f", *metric.Value)
+		}
+
+		_, err = w.Write([]byte(sValue))
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		}
 	}
-
 }
