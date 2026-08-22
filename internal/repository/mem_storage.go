@@ -22,9 +22,9 @@ func (ms *MemStorage) getMetricMapByType(mtype string) map[string]*model.Metric 
 	var metricMap map[string]*model.Metric
 
 	switch mtype {
-	case "counter":
+	case model.Counter:
 		metricMap = ms.counter
-	case "gauge":
+	case model.Gauge:
 		metricMap = ms.gauge
 	}
 
@@ -34,10 +34,16 @@ func (ms *MemStorage) getMetricMapByType(mtype string) map[string]*model.Metric 
 func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
 	hash := model.GetMetricHash(name)
 
+	var err error
+
 	metrics, ok := ms.getMetricMapByType(mtype)[hash]
 	if !ok {
-		metrics = model.NewMetric(name, mtype)
-		err := ms.Save(metrics)
+		metrics, err = model.NewMetric(name, mtype)
+		if err != nil {
+			return nil, err
+		}
+
+		err = ms.Save(metrics)
 		if err != nil {
 			return nil, err
 		}

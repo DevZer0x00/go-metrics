@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"log"
 	"reflect"
 	"runtime"
 )
@@ -12,8 +13,6 @@ type MemMetrics struct {
 
 func CollectMemMetrics() []MemMetrics {
 	fields := [...]string{
-		"Alloc",
-		"BuckHashSys",
 		"Alloc",
 		"BuckHashSys",
 		"Frees",
@@ -53,7 +52,7 @@ func CollectMemMetrics() []MemMetrics {
 	for index, fieldName := range fields {
 		field := refl.FieldByName(fieldName)
 		if !field.IsValid() {
-			panic("memMetrics: field " + fieldName + " is not valid")
+			log.Fatalf("memMetrics: field  %s is not valid", fieldName)
 		}
 
 		value := float64(0)

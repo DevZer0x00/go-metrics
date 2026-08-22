@@ -26,6 +26,15 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	assert.Contains(t, storage.counter, metrics.Hash)
 }
 
+func TestUpdateCounter(t *testing.T) {
+	storage := NewMemStorage()
+	metric, err := storage.GetOrRegister(model.Counter, "test")
+	require.NoError(t, err)
+
+	metric.UpdateDelta(10)
+	assert.Equal(t, int64(10), *metric.Delta)
+}
+
 func TestGetOrRegisterGauge(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.gauge)
@@ -42,6 +51,15 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	assert.NotNil(t, metrics.Value)
 
 	assert.Contains(t, storage.gauge, metrics.Hash)
+}
+
+func TestUpdateGauge(t *testing.T) {
+	storage := NewMemStorage()
+	metric, err := storage.GetOrRegister(model.Gauge, "test")
+	require.NoError(t, err)
+
+	metric.UpdateValue(10)
+	assert.Equal(t, float64(10), *metric.Value)
 }
 
 func TestAll(t *testing.T) {

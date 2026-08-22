@@ -1,15 +1,16 @@
 package routes
 
 import (
-	"fmt"
 	"go-metrics/internal/model"
 	"go-metrics/internal/repository"
+	"go-metrics/internal/service"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateMetricHandlerParameters(t *testing.T) {
@@ -25,7 +26,7 @@ func TestUpdateMetricHandlerParameters(t *testing.T) {
 			Method:     http.MethodPost,
 			Path:       "/update/badMetricType/requestTotal/23",
 			StatusCode: http.StatusBadRequest,
-			Body:       "Bad request\n",
+			Body:       "Bad Request\n",
 		},
 		{
 			TestName:   "Empty metric name 1",
@@ -46,21 +47,21 @@ func TestUpdateMetricHandlerParameters(t *testing.T) {
 			Method:     http.MethodPost,
 			Path:       "/update/counter/metric/sdf",
 			StatusCode: http.StatusBadRequest,
-			Body:       "Bad request\n",
+			Body:       "Bad Request\n",
 		},
 		{
 			TestName:   "Invalid metric value 2",
 			Method:     http.MethodPost,
 			Path:       "/update/counter/metric/12.4",
 			StatusCode: http.StatusBadRequest,
-			Body:       "Bad request\n",
+			Body:       "Bad Request\n",
 		},
 		{
 			TestName:   "Invalid metric value 3",
 			Method:     http.MethodPost,
 			Path:       "/update/gauge/metric/sdfasdf",
 			StatusCode: http.StatusBadRequest,
-			Body:       "Bad request\n",
+			Body:       "Bad Request\n",
 		},
 		{
 			TestName:   "Correct counter",
@@ -82,8 +83,9 @@ func TestUpdateMetricHandlerParameters(t *testing.T) {
 		t.Run(test.TestName, func(t *testing.T) {
 			request := httptest.NewRequest(test.Method, test.Path, nil)
 			recorder := httptest.NewRecorder()
+			metricsService := service.NewMetricsService(repository.NewMemStorage())
 
-			r := NewRouter()
+			r := NewRouter(metricsService)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -96,7 +98,7 @@ func TestUpdateMetricHandlerParameters(t *testing.T) {
 			}
 
 			assert.Equal(t, test.StatusCode, recorder.Code)
-			assert.Equal(t, string(body), test.Body)
+			assert.Equal(t, test.Body, string(body))
 		})
 	}
 }
@@ -170,14 +172,18 @@ func TestGetMetricHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
+			repo := repository.NewMemStorage()
+			metricsService := service.NewMetricsService(repo)
+
 			if test.Metric != nil {
-				repository.Metric.Save(test.Metric)
+				err := repo.Save(test.Metric)
+				require.NoError(t, err)
 			}
 
 			request := httptest.NewRequest(test.Method, test.Path, nil)
 			recorder := httptest.NewRecorder()
 
-			r := NewRouter()
+			r := NewRouter(metricsService)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -195,30 +201,34 @@ func TestGetMetricHandler(t *testing.T) {
 }
 
 func TestAllMetricsHandler(t *testing.T) {
-	rep := repository.Metric
-	metric1, _ := repository.Metric.GetOrRegister(model.Counter, "counter1")
-	metric2, _ := repository.Metric.GetOrRegister(model.Counter, "counter2")
-	metric3, _ := repository.Metric.GetOrRegister(model.Gauge, "gauge1")
+	repo := repository.NewMemStorage()
+	metricsService := service.NewMetricsService(repo)
+
+	metric1, _ := repo.GetOrRegister(model.Counter, "counter1")
+	metric2, _ := repo.GetOrRegister(model.Counter, "counter2")
+	metric3, _ := repo.GetOrRegister(model.Gauge, "gauge1")
 
 	metric1.UpdateDelta(100)
 	metric2.UpdateDelta(200)
-	metric3.UpdateValue(12.45)
-	rep.Save(metric1)
-	rep.Save(metric2)
-	rep.Save(metric3)
+	metric3.UpdateValue(12.455365436546)
+	err := repo.Save(metric1)
+	require.NoError(t, err)
+	err = repo.Save(metric2)
+	require.NoError(t, err)
+	err = repo.Save(metric3)
+	require.NoError(t, err)
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 
-	r := NewRouter()
+	r := NewRouter(metricsService)
 	r.ServeHTTP(recorder, request)
 
 	response := recorder.Result()
 	defer response.Body.Close()
 
-	body, _ := io.ReadAll(response.Body)
+	_, _ = io.ReadAll(response.Body)
 
-	assert.Equal(t, http.StatusOK, recorder.Code)
-
-	fmt.Println(string(body))
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	assert.Equal(t, "text/html; charset=utf-8", response.Header.Get("Content-Type"))
 }

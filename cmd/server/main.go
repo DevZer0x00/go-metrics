@@ -1,14 +1,25 @@
 package main
 
 import (
+	"go-metrics/internal/config"
+	"go-metrics/internal/repository"
 	"go-metrics/internal/routes"
+	"go-metrics/internal/service"
+	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
-	mux := routes.NewRouter()
+	cfg, err := config.ParseServerCliOptions(os.Args[1:])
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	if err := http.ListenAndServe(":8080", mux); err != nil {
-		panic(err)
+	metricsService := service.NewMetricsService(repository.NewMemStorage())
+	router := routes.NewRouter(metricsService)
+
+	if err := http.ListenAndServe(cfg.Addr.Addr, router); err != nil {
+		log.Fatal(err)
 	}
 }

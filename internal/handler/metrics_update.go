@@ -1,61 +1,46 @@
 package handler
 
 import (
-	"go-metrics/internal/model"
-	"go-metrics/internal/repository"
+	"errors"
+	"go-metrics/internal/service"
+	"log"
 	"net/http"
-	"strconv"
 )
 
-func UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	metricType, metricName, metricValue := getMetricsParams(r)
+type UpdateMetricsHandler struct {
+	service *service.MetricsService
+}
 
-	if len(metricName) == 0 {
-		http.NotFound(w, r)
-		return
-	}
+func (handler *UpdateMetricsHandler) HandlerFunc() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType, metricName, metricValue := getMetricsParams(r)
 
-	valid := checkMetricType(w, metricType) && checkMetricValue(w, metricValue)
-	if !valid {
-		return
-	}
-
-	metrics, err := repository.Metric.GetOrRegister(metricType, metricName)
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	switch metricType {
-	case model.Counter:
-		value, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+		if len(metricName) == 0 {
+			http.NotFound(w, r)
 			return
 		}
 
-		metrics.UpdateDelta(value)
-	case model.Gauge:
-		value, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			http.Error(w, "Bad request", http.StatusBadRequest)
+		err := service.CheckMetricType(metricType)
+		valid := err == nil && checkMetricValue(w, metricValue)
+		if !valid {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		metrics.UpdateValue(value)
-		err = repository.Metric.Save(metrics)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		err = handler.service.UpdateFromStringValue(metricType, metricName, metricValue)
+		if err != nil && errors.Is(err, service.ErrInvalidMetricValue) {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		} else if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-	default:
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
 	}
+}
 
-	err = repository.Metric.Save(metrics)
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+func NewUpdateMetricsHandler(service *service.MetricsService) *UpdateMetricsHandler {
+	return &UpdateMetricsHandler{
+		service: service,
 	}
 }

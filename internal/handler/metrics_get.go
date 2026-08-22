@@ -1,70 +1,79 @@
 package handler
 
 import (
-	"fmt"
-	"go-metrics/internal/model"
-	"go-metrics/internal/repository"
+	"errors"
+	"go-metrics/internal/assets"
+	"go-metrics/internal/service"
+	"log"
 	"net/http"
 )
 
-func GetMetricHandler(w http.ResponseWriter, r *http.Request) {
-	metricType, metricName, _ := getMetricsParams(r)
+type GetMetricsHandler struct {
+	service *service.MetricsService
+}
 
-	valid := checkMetricType(w, metricType)
-	if !valid {
-		return
-	}
+func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType, metricName, _ := getMetricsParams(r)
 
-	if has, err := repository.Metric.Has(metricType, metricName); err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	} else if !has {
-		http.NotFound(w, r)
-		return
-	}
+		err := service.CheckMetricType(metricType)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
 
-	metrics, _ := repository.Metric.GetOrRegister(metricType, metricName)
+		metric, err := handler.service.Get(metricType, metricName)
+		if err != nil {
+			if errors.Is(err, service.ErrMetricNotFound) {
+				http.NotFound(w, r)
+				return
+			}
 
-	var sValue string
+			log.Println(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 
-	switch metricType {
-	case model.Counter:
-		sValue = fmt.Sprintf("%d", *metrics.Delta)
-	case model.Gauge:
-		sValue = fmt.Sprintf("%.3f", *metrics.Value)
-	default:
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
-	}
-
-	_, err := w.Write([]byte(sValue))
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+		_, err = w.Write([]byte(metric.ValueToString()))
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
-func GetAllMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	all, err := repository.Metric.All()
-	if err != nil {
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	for _, metric := range all {
-		var sValue string
-
-		switch metric.MType {
-		case model.Counter:
-			sValue = fmt.Sprintf("%d", *metric.Delta)
-		case model.Gauge:
-			sValue = fmt.Sprintf("%.3f", *metric.Value)
-		}
-
-		_, err = w.Write([]byte(sValue))
+func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		all, err := handler.service.GetAll()
 		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			log.Println(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
+
+		metricsData := make([]*assets.GetAlMetricsTemplateData, len(all))
+		for index, metric := range all {
+			metricsData[index] = &assets.GetAlMetricsTemplateData{
+				Name:  metric.ID,
+				Value: metric.ValueToString(),
+			}
+		}
+
+		err = assets.ExecuteGetAllMetricsTemplate(w, metricsData)
+		if err != nil {
+			log.Println(err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func NewGetMetricsHandler(service *service.MetricsService) *GetMetricsHandler {
+	return &GetMetricsHandler{
+		service: service,
 	}
 }
