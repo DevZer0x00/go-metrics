@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	envUtil "go-metrics/pkg/env"
 
 	"github.com/caarlos0/env/v11"
 )
@@ -45,7 +46,7 @@ func ParseAgentOptions(environments []string, arguments []string) (*AgentConfig,
 	}
 
 	err = env.ParseWithOptions(cfg, env.Options{
-		Environment: toMap(environments),
+		Environment: envUtil.ToMap(environments),
 	})
 	if err != nil {
 		return nil, err

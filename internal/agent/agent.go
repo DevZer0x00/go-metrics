@@ -5,10 +5,11 @@ import (
 	"go-metrics/internal/config"
 	"go-metrics/internal/model"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
 )
 
 type MetricsAgent struct {
@@ -61,18 +62,24 @@ func (a *MetricsAgent) Send() {
 	for _, metric := range a.metrics {
 		err := a.sendReport(model.Gauge, metric.Label, strconv.FormatFloat(metric.Value, 'f', -1, 64))
 		if err != nil {
-			log.Printf("error sending metric for metric %s: %v", metric.Label, err)
+			log.Err(err).Msgf("error sending metric for metric %s", metric.Label)
 		}
 	}
 
 	err := a.sendReport(model.Counter, "PollCount", strconv.FormatUint(a.pollCount, 10))
 	if err != nil {
-		log.Printf("error sending metric for metric %s: %v", "PollCount", err)
+		log.
+			Err(err).
+			Str("metricName", "PollCount").
+			Msg("error sending metric")
 	}
 
 	err = a.sendReport(model.Gauge, "RandomValue", strconv.FormatFloat(a.randomValue, 'f', -1, 64))
 	if err != nil {
-		log.Printf("error sending metric for metric %s: %v", "PollCount", err)
+		log.
+			Err(err).
+			Str("metricName", "RandomValue").
+			Msg("error sending metric")
 	}
 
 	a.resetAfterSend()

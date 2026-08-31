@@ -1,8 +1,10 @@
-package config
+package env
 
-import "strings"
+import (
+	"strings"
+)
 
-func toMap(env []string) map[string]string {
+func ToMap(env []string) map[string]string {
 	r := map[string]string{}
 	for _, e := range env {
 		p := strings.SplitN(e, "=", 2)

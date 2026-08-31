@@ -1,9 +1,10 @@
 package agent
 
 import (
-	"log"
 	"reflect"
 	"runtime"
+
+	"github.com/rs/zerolog/log"
 )
 
 type MemMetrics struct {
@@ -52,7 +53,10 @@ func CollectMemMetrics() []MemMetrics {
 	for index, fieldName := range fields {
 		field := refl.FieldByName(fieldName)
 		if !field.IsValid() {
-			log.Fatalf("memMetrics: field  %s is not valid", fieldName)
+			log.
+				Fatal().
+				Str("fieldName", fieldName).
+				Msg("field not found in metrics")
 		}
 
 		value := float64(0)
