@@ -4,8 +4,9 @@ import (
 	"errors"
 	"go-metrics/internal/assets"
 	"go-metrics/internal/service"
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 type GetMetricsHandler struct {
@@ -29,14 +30,20 @@ func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
 				return
 			}
 
-			log.Println(err)
+			log.
+				Error().
+				Err(err).
+				Msg("get metric from repository")
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
 		_, err = w.Write([]byte(metric.ValueToString()))
 		if err != nil {
-			log.Println(err)
+			log.
+				Error().
+				Err(err).
+				Msg("write response")
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -47,7 +54,10 @@ func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		all, err := handler.service.GetAll()
 		if err != nil {
-			log.Println(err)
+			log.
+				Error().
+				Err(err).
+				Msg("write response")
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -62,7 +72,10 @@ func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
 
 		err = assets.ExecuteGetAllMetricsTemplate(w, metricsData)
 		if err != nil {
-			log.Println(err)
+			log.
+				Error().
+				Err(err).
+				Msg("get template")
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

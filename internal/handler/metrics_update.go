@@ -3,8 +3,9 @@ package handler
 import (
 	"errors"
 	"go-metrics/internal/service"
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 type UpdateMetricsHandler struct {
@@ -32,7 +33,10 @@ func (handler *UpdateMetricsHandler) HandlerFunc() http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		} else if err != nil {
-			log.Println(err)
+			log.
+				Error().
+				Err(err).
+				Msg("write response")
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
