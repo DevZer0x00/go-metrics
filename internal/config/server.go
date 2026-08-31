@@ -1,16 +1,20 @@
 package config
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/caarlos0/env/v11"
+)
 
 type ServerAddr struct {
-	Addr string
+	Addr string `env:"ADDRESS"`
 }
 
 type ServerConfig struct {
 	Addr *ServerAddr
 }
 
-func ParseServerCliOptions(arguments []string) (*ServerConfig, error) {
+func ParseServerOptions(environments []string, arguments []string) (*ServerConfig, error) {
 	cfg := &ServerConfig{
 		Addr: &ServerAddr{
 			Addr: "localhost:8080",
@@ -24,6 +28,10 @@ func ParseServerCliOptions(arguments []string) (*ServerConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = env.ParseWithOptions(cfg, env.Options{
+		Environment: toMap(environments),
+	})
 
 	return cfg, nil
 }

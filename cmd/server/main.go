@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.ParseServerCliOptions(os.Args[1:])
+	cfg, err := config.ParseServerOptions(os.Environ(), os.Args[1:])
 	if err != nil {
 		log.Fatal(err)
 	}

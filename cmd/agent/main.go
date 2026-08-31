@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	cfg, err := config.ParseAgentCliOptions(os.Args[1:])
+	cfg, err := config.ParseAgentOptions(os.Environ(), os.Args[1:])
 	if err != nil {
 		log.Fatalln(fmt.Errorf("error parsing agent cli options: %w", err))
 	}
