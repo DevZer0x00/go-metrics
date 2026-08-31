@@ -1,13 +1,17 @@
 package config
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/caarlos0/env/v11"
+)
 
 type PollConfig struct {
-	Interval uint64
+	Interval uint64 `env:"POLL_INTERVAL"`
 }
 
 type ReportConfig struct {
-	Interval uint64
+	Interval uint64 `env:"REPORT_INTERVAL"`
 }
 
 type AgentConfig struct {
@@ -16,7 +20,7 @@ type AgentConfig struct {
 	Report     *ReportConfig
 }
 
-func ParseAgentCliOptions(arguments []string) (*AgentConfig, error) {
+func ParseAgentOptions(environments []string, arguments []string) (*AgentConfig, error) {
 	cfg := &AgentConfig{
 		ServerAddr: &ServerAddr{
 			Addr: "localhost:8080",
@@ -36,6 +40,13 @@ func ParseAgentCliOptions(arguments []string) (*AgentConfig, error) {
 	fs.Uint64Var(&cfg.Poll.Interval, "p", cfg.Poll.Interval, "how often to poll metrics (second)")
 
 	err := fs.Parse(arguments)
+	if err != nil {
+		return nil, err
+	}
+
+	err = env.ParseWithOptions(cfg, env.Options{
+		Environment: toMap(environments),
+	})
 	if err != nil {
 		return nil, err
 	}
