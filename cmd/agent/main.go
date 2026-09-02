@@ -3,11 +3,11 @@ package main
 import (
 	"go-metrics/internal/agent"
 	"go-metrics/internal/config"
-	"net/http"
 	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 func main() {
@@ -23,7 +23,11 @@ func main() {
 
 	var timer uint64 = 0
 
-	client := &http.Client{}
+	client := resty.New()
+	defer client.Close()
+
+	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
+
 	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr)
 
 	for {
