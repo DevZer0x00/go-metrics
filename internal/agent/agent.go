@@ -4,17 +4,16 @@ import (
 	"fmt"
 	"go-metrics/internal/config"
 	"go-metrics/internal/model"
-	"io"
-	"log"
 	"math/rand"
-	"net/http"
-	"strconv"
+
+	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 type MetricsAgent struct {
-	httpClient  *http.Client
+	httpClient  *resty.Client
 	serverAddr  *config.ServerAddr
-	pollCount   uint64
+	pollCount   int64
 	randomValue float64
 	metrics     []MemMetrics
 }
@@ -31,23 +30,12 @@ func (a *MetricsAgent) Collect() {
 	a.metrics = CollectMemMetrics()
 }
 
-func (a *MetricsAgent) sendReport(mType, label, value string) error {
-	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.serverAddr.Addr, mType, label, value)
-
-	request, err := http.NewRequest(http.MethodPost, url, nil)
+func (a *MetricsAgent) sendReport(metric *model.Metric) error {
+	_, err := a.httpClient.R().
+		SetBody(metric).
+		Post(fmt.Sprintf("http://%s/update", a.serverAddr.Addr))
 	if err != nil {
-		return fmt.Errorf("error creating request for url %s: %w", url, err)
-	}
-
-	resp, err := a.httpClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("error making request for url %s: %w", url, err)
-	}
-
-	_, _ = io.Copy(io.Discard, resp.Body)
-	err = resp.Body.Close()
-	if err != nil {
-		return fmt.Errorf("error closing response body for url %s: %w", url, err)
+		return fmt.Errorf("error making request: %w", err)
 	}
 
 	return nil
@@ -58,27 +46,47 @@ func (a *MetricsAgent) Send() {
 		return
 	}
 
-	for _, metric := range a.metrics {
-		err := a.sendReport(model.Gauge, metric.Label, strconv.FormatFloat(metric.Value, 'f', -1, 64))
+	for _, memMetric := range a.metrics {
+		metric := &model.Metric{
+			ID:    memMetric.Label,
+			MType: model.Gauge,
+			Value: &memMetric.Value,
+		}
+
+		err := a.sendReport(metric)
 		if err != nil {
-			log.Printf("error sending metric for metric %s: %v", metric.Label, err)
+			log.Err(err).Msgf("error sending metric for metric %s", memMetric.Label)
 		}
 	}
 
-	err := a.sendReport(model.Counter, "PollCount", strconv.FormatUint(a.pollCount, 10))
+	err := a.sendReport(&model.Metric{
+		ID:    "PollCount",
+		MType: model.Counter,
+		Delta: &a.pollCount,
+	})
 	if err != nil {
-		log.Printf("error sending metric for metric %s: %v", "PollCount", err)
+		log.
+			Err(err).
+			Str("metricName", "PollCount").
+			Msg("error sending metric")
 	}
 
-	err = a.sendReport(model.Gauge, "RandomValue", strconv.FormatFloat(a.randomValue, 'f', -1, 64))
+	err = a.sendReport(&model.Metric{
+		ID:    "RandomValue",
+		MType: model.Gauge,
+		Value: &a.randomValue,
+	})
 	if err != nil {
-		log.Printf("error sending metric for metric %s: %v", "PollCount", err)
+		log.
+			Err(err).
+			Str("metricName", "RandomValue").
+			Msg("error sending metric")
 	}
 
 	a.resetAfterSend()
 }
 
-func NewMetricsAgent(client *http.Client, addr *config.ServerAddr) *MetricsAgent {
+func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr) *MetricsAgent {
 	return &MetricsAgent{
 		httpClient:  client,
 		serverAddr:  addr,

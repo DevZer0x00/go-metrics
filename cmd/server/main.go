@@ -5,21 +5,30 @@ import (
 	"go-metrics/internal/repository"
 	"go-metrics/internal/routes"
 	"go-metrics/internal/service"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	cfg, err := config.ParseServerCliOptions(os.Args[1:])
+	config.InitLog(os.Stdout)
+
+	cfg, err := config.ParseServerOptions(os.Environ(), os.Args[1:])
 	if err != nil {
-		log.Fatal(err)
+		log.
+			Fatal().
+			Err(err).
+			Msg("failed to parse server options")
 	}
 
 	metricsService := service.NewMetricsService(repository.NewMemStorage())
 	router := routes.NewRouter(metricsService)
 
-	if err := http.ListenAndServe(cfg.Addr.Addr, router); err != nil {
-		log.Fatal(err)
+	if err = http.ListenAndServe(cfg.Addr.Addr, router); err != nil {
+		log.
+			Fatal().
+			Err(err).
+			Msg("failed to start server")
 	}
 }

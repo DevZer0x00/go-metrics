@@ -7,75 +7,76 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestUpdateMetricHandlerParameters(t *testing.T) {
+func TestUpdateFromPathHandlerParameters(t *testing.T) {
 	tests := []struct {
-		TestName   string
-		Method     string
-		Path       string
-		StatusCode int
-		Body       string
+		TestName     string
+		Method       string
+		Path         string
+		StatusCode   int
+		ResponseBody string
 	}{
 		{
-			TestName:   "Metric type not allowed",
-			Method:     http.MethodPost,
-			Path:       "/update/badMetricType/requestTotal/23",
-			StatusCode: http.StatusBadRequest,
-			Body:       "Bad Request\n",
+			TestName:     "Metric type not allowed",
+			Method:       http.MethodPost,
+			Path:         "/update/badMetricType/requestTotal/23",
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
 		},
 		{
-			TestName:   "Empty metric name 1",
-			Method:     http.MethodPost,
-			Path:       "/update/counter",
-			StatusCode: http.StatusNotFound,
-			Body:       "404 page not found\n",
+			TestName:     "Empty metric name 1",
+			Method:       http.MethodPost,
+			Path:         "/update/counter",
+			StatusCode:   http.StatusNotFound,
+			ResponseBody: "404 page not found\n",
 		},
 		{
-			TestName:   "Empty metric name 2",
-			Method:     http.MethodPost,
-			Path:       "/update/counter/%20/23",
-			StatusCode: http.StatusNotFound,
-			Body:       "404 page not found\n",
+			TestName:     "Empty metric name 2",
+			Method:       http.MethodPost,
+			Path:         "/update/counter/%20/23",
+			StatusCode:   http.StatusNotFound,
+			ResponseBody: "404 page not found\n",
 		},
 		{
-			TestName:   "Invalid metric value 1",
-			Method:     http.MethodPost,
-			Path:       "/update/counter/metric/sdf",
-			StatusCode: http.StatusBadRequest,
-			Body:       "Bad Request\n",
+			TestName:     "Invalid metric value 1",
+			Method:       http.MethodPost,
+			Path:         "/update/counter/metric/sdf",
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
 		},
 		{
-			TestName:   "Invalid metric value 2",
-			Method:     http.MethodPost,
-			Path:       "/update/counter/metric/12.4",
-			StatusCode: http.StatusBadRequest,
-			Body:       "Bad Request\n",
+			TestName:     "Invalid metric value 2",
+			Method:       http.MethodPost,
+			Path:         "/update/counter/metric/12.4",
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
 		},
 		{
-			TestName:   "Invalid metric value 3",
-			Method:     http.MethodPost,
-			Path:       "/update/gauge/metric/sdfasdf",
-			StatusCode: http.StatusBadRequest,
-			Body:       "Bad Request\n",
+			TestName:     "Invalid metric value 3",
+			Method:       http.MethodPost,
+			Path:         "/update/gauge/metric/sdfasdf",
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
 		},
 		{
-			TestName:   "Correct counter",
-			Method:     http.MethodPost,
-			Path:       "/update/counter/metric/1",
-			StatusCode: http.StatusOK,
-			Body:       "",
+			TestName:     "Correct counter",
+			Method:       http.MethodPost,
+			Path:         "/update/counter/metric/1",
+			StatusCode:   http.StatusOK,
+			ResponseBody: "",
 		},
 		{
-			TestName:   "Correct gauge",
-			Method:     http.MethodPost,
-			Path:       "/update/gauge/metric/12.5",
-			StatusCode: http.StatusOK,
-			Body:       "",
+			TestName:     "Correct gauge",
+			Method:       http.MethodPost,
+			Path:         "/update/gauge/metric/12.5",
+			StatusCode:   http.StatusOK,
+			ResponseBody: "",
 		},
 	}
 
@@ -97,20 +98,145 @@ func TestUpdateMetricHandlerParameters(t *testing.T) {
 				t.Fatalf("Failed to read response body: %s", err)
 			}
 
+			assert.Equal(t, test.StatusCode, response.StatusCode)
+			assert.Equal(t, test.ResponseBody, string(body))
+		})
+	}
+}
+
+func TestUpdateFromJSONHandlerFunc(t *testing.T) {
+	tests := []struct {
+		TestName     string
+		Method       string
+		ContentType  string
+		RequestBody  string
+		ResponseBody string
+		StatusCode   int
+	}{
+		{
+			TestName:     "Invalid Content Type",
+			Method:       http.MethodPost,
+			RequestBody:  "",
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+			ContentType:  "text/plain; charset=utf-8",
+		},
+		{
+			TestName:     "Invalid Json",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "gauge", "value: 12.14124}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Metric type not allowed",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "badType", "value": 1214124}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Empty metric name 1",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "    ", "type": "counter", "value": 1214124}`,
+			StatusCode:   http.StatusNotFound,
+			ResponseBody: "404 page not found\n",
+		},
+		{
+			TestName:     "Empty metric name 2",
+			Method:       http.MethodPost,
+			RequestBody:  `{"type": "badType", "value": 1214124}`,
+			StatusCode:   http.StatusNotFound,
+			ResponseBody: "404 page not found\n",
+		},
+		{
+			TestName:     "Invalid metric value 1",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "counter", "delta": "sdsafg"}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value 2",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "counter", "delta": 12.14124}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value 3",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "gauge", "value": "sdgsdg"}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value for metric type counter",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "counter", "value": 12.44}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value for metric type gauge",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "gauge", "delta": 12}`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Correct counter",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "counter", "delta": 1214124}`,
+			StatusCode:   http.StatusOK,
+			ResponseBody: "",
+		},
+		{
+			TestName:     "Correct gauge",
+			Method:       http.MethodPost,
+			RequestBody:  `{"id": "test", "type": "gauge", "value": 12.14124}`,
+			StatusCode:   http.StatusOK,
+			ResponseBody: "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.TestName, func(t *testing.T) {
+			request := httptest.NewRequest(test.Method, "/update", strings.NewReader(test.RequestBody))
+			if len(test.ContentType) > 0 {
+				request.Header.Set("Content-Type", test.ContentType)
+			} else {
+				request.Header.Set("Content-Type", "application/json")
+			}
+
+			recorder := httptest.NewRecorder()
+			metricsService := service.NewMetricsService(repository.NewMemStorage())
+
+			r := NewRouter(metricsService)
+			r.ServeHTTP(recorder, request)
+
+			response := recorder.Result()
+
+			defer response.Body.Close()
+
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body: %s", err)
+			}
+
 			assert.Equal(t, test.StatusCode, recorder.Code)
-			assert.Equal(t, test.Body, string(body))
+			assert.Equal(t, test.ResponseBody, string(body))
 		})
 	}
 }
 
 func TestGetMetricHandler(t *testing.T) {
 	delta := int64(35)
-	value := 12.33444
+	value := 12.33000
 	metricHash := model.GetMetricHash("requestTotal")
 
 	tests := []struct {
 		TestName   string
-		Method     string
 		Path       string
 		Metric     *model.Metric
 		StatusCode int
@@ -118,21 +244,18 @@ func TestGetMetricHandler(t *testing.T) {
 	}{
 		{
 			TestName:   "Metric type not allowed",
-			Method:     http.MethodGet,
 			Path:       "/value/badMetricType/requestTotal",
 			StatusCode: http.StatusBadRequest,
 			Value:      "",
 		},
 		{
 			TestName:   "Metric not found 1",
-			Method:     http.MethodGet,
 			Path:       "/value/counter/requestTotal",
 			StatusCode: http.StatusNotFound,
 			Value:      "",
 		},
 		{
 			TestName: "Metric not found 2",
-			Method:   http.MethodGet,
 			Path:     "/value/gauge/requestTotal",
 			Metric: &model.Metric{
 				ID:    "requestTotal",
@@ -144,7 +267,6 @@ func TestGetMetricHandler(t *testing.T) {
 		},
 		{
 			TestName: "Counter metric value",
-			Method:   http.MethodGet,
 			Path:     "/value/counter/requestTotal",
 			Metric: &model.Metric{
 				ID:    "requestTotal",
@@ -157,7 +279,6 @@ func TestGetMetricHandler(t *testing.T) {
 		},
 		{
 			TestName: "Gauge metric value",
-			Method:   http.MethodGet,
 			Path:     "/value/gauge/requestTotal",
 			Metric: &model.Metric{
 				ID:    "requestTotal",
@@ -166,7 +287,7 @@ func TestGetMetricHandler(t *testing.T) {
 				Hash:  metricHash,
 			},
 			StatusCode: http.StatusOK,
-			Value:      "12.334",
+			Value:      "12.33",
 		},
 	}
 
@@ -180,7 +301,7 @@ func TestGetMetricHandler(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			request := httptest.NewRequest(test.Method, test.Path, nil)
+			request := httptest.NewRequest(http.MethodGet, test.Path, nil)
 			recorder := httptest.NewRecorder()
 
 			r := NewRouter(metricsService)
@@ -195,6 +316,96 @@ func TestGetMetricHandler(t *testing.T) {
 
 			if test.StatusCode == http.StatusOK {
 				assert.Equal(t, test.Value, string(body))
+			}
+		})
+	}
+}
+
+func TestGetMetricValueHandler(t *testing.T) {
+	delta := int64(35)
+	value := 12.33444
+	metricHash := model.GetMetricHash("requestTotal")
+
+	tests := []struct {
+		TestName     string
+		Metric       *model.Metric
+		RequestBody  string
+		StatusCode   int
+		ResponseBody string
+	}{
+		{
+			TestName:    "Empty json",
+			RequestBody: ``,
+			StatusCode:  http.StatusBadRequest,
+		},
+		{
+			TestName:    "Metric not found 1",
+			RequestBody: `{"id": "test", "type": "requestTotal"}`,
+			StatusCode:  http.StatusNotFound,
+		},
+		{
+			TestName: "Metric not found 2",
+			Metric: &model.Metric{
+				ID:    "requestTotal",
+				MType: model.Counter,
+				Hash:  metricHash,
+			},
+			RequestBody: `{"id": "test", "type": "gauge"}`,
+			StatusCode:  http.StatusNotFound,
+		},
+		{
+			TestName: "Counter metric value",
+			Metric: &model.Metric{
+				ID:    "requestTotal",
+				MType: model.Counter,
+				Delta: &delta,
+				Hash:  metricHash,
+			},
+			RequestBody:  `{"id": "requestTotal", "type": "counter"}`,
+			StatusCode:   http.StatusOK,
+			ResponseBody: `{"id":"requestTotal","type":"counter","delta":35}`,
+		},
+		{
+			TestName: "Gauge metric value",
+			Metric: &model.Metric{
+				ID:    "requestTotal",
+				MType: model.Gauge,
+				Value: &value,
+				Hash:  metricHash,
+			},
+			RequestBody:  `{"id": "requestTotal", "type": "gauge"}`,
+			StatusCode:   http.StatusOK,
+			ResponseBody: `{"id":"requestTotal","type":"gauge","value":12.33444}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.TestName, func(t *testing.T) {
+			repo := repository.NewMemStorage()
+			metricsService := service.NewMetricsService(repo)
+
+			if test.Metric != nil {
+				err := repo.Save(test.Metric)
+				require.NoError(t, err)
+			}
+
+			request := httptest.NewRequest(http.MethodPost, "/value", strings.NewReader(test.RequestBody))
+			request.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+
+			r := NewRouter(metricsService)
+			r.ServeHTTP(recorder, request)
+
+			response := recorder.Result()
+			defer response.Body.Close()
+
+			body, _ := io.ReadAll(response.Body)
+
+			assert.Equal(t, test.StatusCode, recorder.Code)
+
+			if test.StatusCode == http.StatusOK {
+				assert.Equal(t, test.ResponseBody, strings.TrimSpace(string(body)))
+				assert.Equal(t, "application/json", response.Header.Get("Content-Type"))
 			}
 		})
 	}
