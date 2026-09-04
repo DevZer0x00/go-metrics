@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-metrics/internal/config"
 	"go-metrics/internal/model"
+	"go-metrics/internal/resty/middleware"
 	"math/rand"
 
 	"github.com/rs/zerolog/log"
@@ -87,6 +88,9 @@ func (a *MetricsAgent) Send() {
 }
 
 func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr) *MetricsAgent {
+	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
+	client.AddRequestMiddleware(middleware.RequestGzipCompress)
+
 	return &MetricsAgent{
 		httpClient:  client,
 		serverAddr:  addr,

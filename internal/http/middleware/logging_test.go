@@ -38,18 +38,18 @@ func TestLoggingMiddleware(t *testing.T) {
 	require.NoError(t, err)
 
 	var logData struct {
-		RequestMethod string  `json:"requestMethod,required"`
-		RequestUri    string  `json:"requestUri,required"`
-		ResponseTime  float64 `json:"responseTime,required"`
-		ResponseCode  int     `json:"responseCode,required"`
-		ResponseSize  uint64  `json:"responseSize,required"`
+		RequestMethod string  `json:"requestMethod"`
+		RequestURI    string  `json:"requestURI"`
+		ResponseTime  float64 `json:"responseTime"`
+		ResponseCode  int     `json:"responseCode"`
+		ResponseSize  uint64  `json:"responseSize"`
 	}
 
 	err = json.Unmarshal(buffer.Bytes(), &logData)
 	require.NoError(t, err)
 
 	assert.Equal(t, "GET", logData.RequestMethod)
-	assert.Equal(t, "/", logData.RequestUri)
+	assert.Equal(t, "/", logData.RequestURI)
 	assert.NotEmpty(t, logData.ResponseTime)
 	assert.Equal(t, http.StatusOK, logData.ResponseCode)
 }

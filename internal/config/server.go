@@ -34,5 +34,5 @@ func ParseServerOptions(environments []string, arguments []string) (*ServerConfi
 		Environment: envUtil.ToMap(environments),
 	})
 
-	return cfg, nil
+	return cfg, err
 }

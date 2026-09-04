@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"go-metrics/internal/config"
 	"go-metrics/internal/model"
@@ -76,9 +77,14 @@ func TestMetricAgentSendMetrics(t *testing.T) {
 		counter++
 
 		assert.Equal(t, http.MethodPost, req.Method)
-		assert.Equal(t, "application/json", req.Header.Get("content-type"))
+		assert.Equal(t, "application/x-gzip", req.Header.Get("content-type"))
 
-		bodyBytes, err := io.ReadAll(req.Body)
+		gzipReader, err := gzip.NewReader(req.Body)
+		require.NoError(t, err)
+
+		defer gzipReader.Close()
+
+		bodyBytes, err := io.ReadAll(gzipReader)
 		require.NoError(t, err)
 
 		metric := &model.Metric{}

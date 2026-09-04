@@ -59,6 +59,8 @@ func LoggingMiddleware() func(next http.Handler) http.Handler {
 			log.Info().
 				Str("requestMethod", r.Method).
 				Str("requestUri", r.URL.RequestURI()).
+				Str("requestContentType", r.Header.Get("Content-Type")).
+				Str("requestEncoding", r.Header.Get("Content-Encoding")).
 				Str("requestBody", string(bodyBytes)).
 				Str("responseBody", string(writer.responseData.response)).
 				Dur("responseTime", endTime).

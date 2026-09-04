@@ -26,8 +26,6 @@ func main() {
 	client := resty.New()
 	defer client.Close()
 
-	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
-
 	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr)
 
 	for {

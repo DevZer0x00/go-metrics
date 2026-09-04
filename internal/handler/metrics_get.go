@@ -62,13 +62,13 @@ func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
 			}
 		}
 
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		err = assets.ExecuteGetAllMetricsTemplate(w, metricsData)
 		if err != nil {
 			internalError(w, "get template", err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 	}
 }

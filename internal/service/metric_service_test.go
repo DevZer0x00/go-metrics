@@ -53,7 +53,7 @@ func TestMetricsServiceGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, metric)
 
-	metric, err = service.Get(model.Gauge, "gauge")
+	_, err = service.Get(model.Gauge, "gauge")
 	assert.ErrorAs(t, err, &ErrMetricNotFound)
 }
 

@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"bytes"
+	"compress/gzip"
+	"fmt"
 	"go-metrics/internal/model"
 	"go-metrics/internal/repository"
 	"go-metrics/internal/service"
@@ -200,33 +203,50 @@ func TestUpdateFromJSONHandlerFunc(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.TestName, func(t *testing.T) {
-			request := httptest.NewRequest(test.Method, "/update", strings.NewReader(test.RequestBody))
-			if len(test.ContentType) > 0 {
-				request.Header.Set("Content-Type", test.ContentType)
-			} else {
-				request.Header.Set("Content-Type", "application/json")
-			}
+	for _, compressed := range []bool{true, false} {
+		for _, test := range tests {
+			testName := fmt.Sprintf("%s compressed: %t", test.TestName, compressed)
 
-			recorder := httptest.NewRecorder()
-			metricsService := service.NewMetricsService(repository.NewMemStorage())
+			t.Run(testName, func(t *testing.T) {
+				if compressed {
+					var buffer bytes.Buffer
+					gzipWriter, _ := gzip.NewWriterLevel(&buffer, gzip.BestCompression)
+					_, _ = gzipWriter.Write([]byte(test.RequestBody))
+					_ = gzipWriter.Close()
+					test.RequestBody = buffer.String()
+				}
 
-			r := NewRouter(metricsService)
-			r.ServeHTTP(recorder, request)
+				request := httptest.NewRequest(test.Method, "/update", strings.NewReader(test.RequestBody))
+				if len(test.ContentType) > 0 {
+					request.Header.Set("Content-Type", test.ContentType)
+				} else {
+					if compressed {
+						request.Header.Set("Content-Encoding", "gzip")
+						request.Header.Set("Content-Type", "application/x-gzip")
+					} else {
+						request.Header.Set("Content-Type", "application/json")
+					}
+				}
 
-			response := recorder.Result()
+				recorder := httptest.NewRecorder()
+				metricsService := service.NewMetricsService(repository.NewMemStorage())
 
-			defer response.Body.Close()
+				r := NewRouter(metricsService)
+				r.ServeHTTP(recorder, request)
 
-			body, err := io.ReadAll(response.Body)
-			if err != nil {
-				t.Fatalf("Failed to read response body: %s", err)
-			}
+				response := recorder.Result()
 
-			assert.Equal(t, test.StatusCode, recorder.Code)
-			assert.Equal(t, test.ResponseBody, string(body))
-		})
+				defer response.Body.Close()
+
+				body, err := io.ReadAll(response.Body)
+				if err != nil {
+					t.Fatalf("Failed to read response body: %s", err)
+				}
+
+				assert.Equal(t, test.StatusCode, recorder.Code)
+				assert.Equal(t, test.ResponseBody, string(body))
+			})
+		}
 	}
 }
 
@@ -327,11 +347,12 @@ func TestGetMetricValueHandler(t *testing.T) {
 	metricHash := model.GetMetricHash("requestTotal")
 
 	tests := []struct {
-		TestName     string
-		Metric       *model.Metric
-		RequestBody  string
-		StatusCode   int
-		ResponseBody string
+		TestName       string
+		Metric         *model.Metric
+		RequestBody    string
+		StatusCode     int
+		ResponseBody   string
+		AcceptEncoding string
 	}{
 		{
 			TestName:    "Empty json",
@@ -366,6 +387,19 @@ func TestGetMetricValueHandler(t *testing.T) {
 			ResponseBody: `{"id":"requestTotal","type":"counter","delta":35}`,
 		},
 		{
+			TestName: "Counter metric value gzipped",
+			Metric: &model.Metric{
+				ID:    "requestTotal",
+				MType: model.Counter,
+				Delta: &delta,
+				Hash:  metricHash,
+			},
+			RequestBody:    `{"id": "requestTotal", "type": "counter"}`,
+			StatusCode:     http.StatusOK,
+			ResponseBody:   `{"id":"requestTotal","type":"counter","delta":35}`,
+			AcceptEncoding: "gzip",
+		},
+		{
 			TestName: "Gauge metric value",
 			Metric: &model.Metric{
 				ID:    "requestTotal",
@@ -376,6 +410,19 @@ func TestGetMetricValueHandler(t *testing.T) {
 			RequestBody:  `{"id": "requestTotal", "type": "gauge"}`,
 			StatusCode:   http.StatusOK,
 			ResponseBody: `{"id":"requestTotal","type":"gauge","value":12.33444}`,
+		},
+		{
+			TestName: "Gauge metric value",
+			Metric: &model.Metric{
+				ID:    "requestTotal",
+				MType: model.Gauge,
+				Value: &value,
+				Hash:  metricHash,
+			},
+			RequestBody:    `{"id": "requestTotal", "type": "gauge"}`,
+			StatusCode:     http.StatusOK,
+			ResponseBody:   `{"id":"requestTotal","type":"gauge","value":12.33444}`,
+			AcceptEncoding: "gzip",
 		},
 	}
 
@@ -391,6 +438,10 @@ func TestGetMetricValueHandler(t *testing.T) {
 
 			request := httptest.NewRequest(http.MethodPost, "/value", strings.NewReader(test.RequestBody))
 			request.Header.Set("Content-Type", "application/json")
+			if test.AcceptEncoding != "" {
+				request.Header.Set("Accept-Encoding", test.AcceptEncoding)
+			}
+
 			recorder := httptest.NewRecorder()
 
 			r := NewRouter(metricsService)
@@ -400,6 +451,13 @@ func TestGetMetricValueHandler(t *testing.T) {
 			defer response.Body.Close()
 
 			body, _ := io.ReadAll(response.Body)
+			if response.Header.Get("Content-Encoding") == "gzip" {
+				gzipReader, err := gzip.NewReader(bytes.NewReader(body))
+				require.NoError(t, err)
+
+				body, err = io.ReadAll(gzipReader)
+				require.NoError(t, err)
+			}
 
 			assert.Equal(t, test.StatusCode, recorder.Code)
 
