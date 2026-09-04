@@ -2,7 +2,6 @@ package model
 
 import (
 	"crypto/md5"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,19 +17,19 @@ type Metric struct {
 	MType string   `json:"type"`
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
-	Hash  string   `json:"hash,omitempty"`
+	Hash  string   `json:"-"`
 }
 
-func (metrics *Metric) UpdateDelta(value int64) int64 {
-	*metrics.Delta += value
+func (metric *Metric) UpdateDelta(value int64) int64 {
+	*metric.Delta += value
 
-	return *metrics.Delta
+	return *metric.Delta
 }
 
-func (metrics *Metric) UpdateValue(value float64) float64 {
-	*metrics.Value = value
+func (metric *Metric) UpdateValue(value float64) float64 {
+	*metric.Value = value
 
-	return *metrics.Value
+	return *metric.Value
 }
 
 func (metric *Metric) ValueToString() string {
@@ -44,8 +43,8 @@ func (metric *Metric) ValueToString() string {
 	return ""
 }
 
-func NewMetric(name string, mtype string) (*Metric, error) {
-	metrics := &Metric{
+func NewMetric(name string, mtype string) *Metric {
+	metric := &Metric{
 		ID:    name,
 		MType: mtype,
 		Hash:  GetMetricHash(name),
@@ -53,14 +52,12 @@ func NewMetric(name string, mtype string) (*Metric, error) {
 
 	switch mtype {
 	case Counter:
-		metrics.Delta = new(int64)
+		metric.Delta = new(int64)
 	case Gauge:
-		metrics.Value = new(float64)
-	default:
-		return nil, errors.New(fmt.Sprintf("unknown metrics type: %s", mtype))
+		metric.Value = new(float64)
 	}
 
-	return metrics, nil
+	return metric
 }
 
 func GetMetricHash(name string) string {

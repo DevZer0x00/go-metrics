@@ -1,24 +1,31 @@
 package main
 
 import (
-	"fmt"
 	"go-metrics/internal/agent"
 	"go-metrics/internal/config"
-	"log"
-	"net/http"
 	"os"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"resty.dev/v3"
 )
 
 func main() {
-	cfg, err := config.ParseAgentCliOptions(os.Args[1:])
+	config.InitLog(os.Stdout)
+
+	cfg, err := config.ParseAgentOptions(os.Environ(), os.Args[1:])
 	if err != nil {
-		log.Fatalln(fmt.Errorf("error parsing agent cli options: %w", err))
+		log.
+			Fatal().
+			Err(err).
+			Msg("error parsing agent options")
 	}
 
 	var timer uint64 = 0
 
-	client := &http.Client{}
+	client := resty.New()
+	defer client.Close()
+
 	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr)
 
 	for {

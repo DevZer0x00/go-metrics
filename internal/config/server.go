@@ -1,16 +1,21 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	envUtil "go-metrics/pkg/env"
+
+	"github.com/caarlos0/env/v11"
+)
 
 type ServerAddr struct {
-	Addr string
+	Addr string `env:"ADDRESS"`
 }
 
 type ServerConfig struct {
 	Addr *ServerAddr
 }
 
-func ParseServerCliOptions(arguments []string) (*ServerConfig, error) {
+func ParseServerOptions(environments []string, arguments []string) (*ServerConfig, error) {
 	cfg := &ServerConfig{
 		Addr: &ServerAddr{
 			Addr: "localhost:8080",
@@ -25,5 +30,9 @@ func ParseServerCliOptions(arguments []string) (*ServerConfig, error) {
 		return nil, err
 	}
 
-	return cfg, nil
+	err = env.ParseWithOptions(cfg, env.Options{
+		Environment: envUtil.ToMap(environments),
+	})
+
+	return cfg, err
 }

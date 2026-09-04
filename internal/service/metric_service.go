@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"go-metrics/internal/model"
 	"strconv"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/go-playground/validator/v10/non-standard/validators"
 )
 
 type MetricRepository interface {
@@ -21,6 +24,39 @@ var ErrMetricNotFound = errors.New("metric not found")
 var allowedMetricTypes = map[string]bool{
 	model.Counter: true,
 	model.Gauge:   true,
+}
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+	_ = validate.RegisterValidation("notblank", validators.NotBlank)
+	_ = validate.RegisterValidation(
+		"checkMetricValue",
+		func(fl validator.FieldLevel) bool {
+			parentField := fl.Parent()
+
+			switch parentField.FieldByName("MType").String() {
+			case model.Counter:
+				return !parentField.FieldByName("Delta").IsNil()
+			case model.Gauge:
+				return !parentField.FieldByName("Value").IsNil()
+			}
+
+			return true
+		},
+		true,
+	)
+
+	validate.RegisterStructValidationMapRules(
+		map[string]string{
+			"ID":    "required,notblank",
+			"MType": fmt.Sprintf("required,oneof=%s %s", model.Counter, model.Gauge),
+			"Delta": "checkMetricValue",
+			"Value": "checkMetricValue",
+		},
+		model.Metric{},
+	)
 }
 
 type MetricsService struct {
@@ -50,15 +86,7 @@ func (service *MetricsService) GetAll() ([]*model.Metric, error) {
 }
 
 func (service *MetricsService) UpdateFromStringValue(metricType, metricName, metricValue string) error {
-	err := CheckMetricType(metricType)
-	if err != nil {
-		return err
-	}
-
-	metrics, err := service.repository.GetOrRegister(metricType, metricName)
-	if err != nil {
-		return fmt.Errorf("error getting metrics from repository: %w", err)
-	}
+	metric := model.NewMetric(metricName, metricType)
 
 	switch metricType {
 	case model.Counter:
@@ -67,19 +95,40 @@ func (service *MetricsService) UpdateFromStringValue(metricType, metricName, met
 			return ErrInvalidMetricValue
 		}
 
-		metrics.UpdateDelta(value)
+		*metric.Delta = value
 	case model.Gauge:
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return ErrInvalidMetricValue
 		}
 
-		metrics.UpdateValue(value)
+		*metric.Value = value
 	}
 
-	err = service.repository.Save(metrics)
+	return service.UpdateFromModel(metric)
+}
+
+func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
+	err := validate.Struct(metricReq)
 	if err != nil {
-		return fmt.Errorf("error save metrics: %w", err)
+		return err
+	}
+
+	metric, err := service.repository.GetOrRegister(metricReq.MType, metricReq.ID)
+	if err != nil {
+		return fmt.Errorf("error getting metrics from repository: %w", err)
+	}
+
+	switch metricReq.MType {
+	case model.Counter:
+		metric.UpdateDelta(*metricReq.Delta)
+	case model.Gauge:
+		metric.UpdateValue(*metricReq.Value)
+	}
+
+	err = service.repository.Save(metric)
+	if err != nil {
+		return fmt.Errorf("error save metric: %w", err)
 	}
 
 	return nil

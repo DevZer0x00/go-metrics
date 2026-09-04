@@ -12,9 +12,9 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.counter)
 
-	metrics, err := storage.GetOrRegister(model.Counter, "test")
+	_, err := storage.GetOrRegister(model.Counter, "test")
 	require.NoError(t, err)
-	metrics, err = storage.GetOrRegister(model.Counter, "test")
+	metrics, err := storage.GetOrRegister(model.Counter, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.counter, 1)
@@ -39,9 +39,9 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.gauge)
 
-	metrics, err := storage.GetOrRegister(model.Gauge, "test")
+	_, err := storage.GetOrRegister(model.Gauge, "test")
 	require.NoError(t, err)
-	metrics, err = storage.GetOrRegister(model.Gauge, "test")
+	metrics, err := storage.GetOrRegister(model.Gauge, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.gauge, 1)
