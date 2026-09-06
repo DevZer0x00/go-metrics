@@ -253,7 +253,6 @@ func TestUpdateFromJSONHandlerFunc(t *testing.T) {
 func TestGetMetricHandler(t *testing.T) {
 	delta := int64(35)
 	value := 12.33000
-	metricHash := model.GetMetricHash("requestTotal")
 
 	tests := []struct {
 		TestName   string
@@ -280,7 +279,6 @@ func TestGetMetricHandler(t *testing.T) {
 			Metric: &model.Metric{
 				ID:    "requestTotal",
 				MType: model.Counter,
-				Hash:  metricHash,
 			},
 			StatusCode: http.StatusNotFound,
 			Value:      "",
@@ -292,7 +290,6 @@ func TestGetMetricHandler(t *testing.T) {
 				ID:    "requestTotal",
 				MType: model.Counter,
 				Delta: &delta,
-				Hash:  metricHash,
 			},
 			StatusCode: http.StatusOK,
 			Value:      "35",
@@ -304,7 +301,6 @@ func TestGetMetricHandler(t *testing.T) {
 				ID:    "requestTotal",
 				MType: model.Gauge,
 				Value: &value,
-				Hash:  metricHash,
 			},
 			StatusCode: http.StatusOK,
 			Value:      "12.33",
@@ -344,7 +340,6 @@ func TestGetMetricHandler(t *testing.T) {
 func TestGetMetricValueHandler(t *testing.T) {
 	delta := int64(35)
 	value := 12.33444
-	metricHash := model.GetMetricHash("requestTotal")
 
 	tests := []struct {
 		TestName       string
@@ -369,7 +364,6 @@ func TestGetMetricValueHandler(t *testing.T) {
 			Metric: &model.Metric{
 				ID:    "requestTotal",
 				MType: model.Counter,
-				Hash:  metricHash,
 			},
 			RequestBody: `{"id": "test", "type": "gauge"}`,
 			StatusCode:  http.StatusNotFound,
@@ -380,7 +374,6 @@ func TestGetMetricValueHandler(t *testing.T) {
 				ID:    "requestTotal",
 				MType: model.Counter,
 				Delta: &delta,
-				Hash:  metricHash,
 			},
 			RequestBody:  `{"id": "requestTotal", "type": "counter"}`,
 			StatusCode:   http.StatusOK,
@@ -392,7 +385,6 @@ func TestGetMetricValueHandler(t *testing.T) {
 				ID:    "requestTotal",
 				MType: model.Counter,
 				Delta: &delta,
-				Hash:  metricHash,
 			},
 			RequestBody:    `{"id": "requestTotal", "type": "counter"}`,
 			StatusCode:     http.StatusOK,
@@ -405,7 +397,6 @@ func TestGetMetricValueHandler(t *testing.T) {
 				ID:    "requestTotal",
 				MType: model.Gauge,
 				Value: &value,
-				Hash:  metricHash,
 			},
 			RequestBody:  `{"id": "requestTotal", "type": "gauge"}`,
 			StatusCode:   http.StatusOK,
@@ -417,7 +408,6 @@ func TestGetMetricValueHandler(t *testing.T) {
 				ID:    "requestTotal",
 				MType: model.Gauge,
 				Value: &value,
-				Hash:  metricHash,
 			},
 			RequestBody:    `{"id": "requestTotal", "type": "gauge"}`,
 			StatusCode:     http.StatusOK,

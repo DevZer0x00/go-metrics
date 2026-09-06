@@ -23,6 +23,13 @@ func TestParseServerCliOptions(t *testing.T) {
 				Addr: &ServerAddr{
 					Addr: "localhost:8080",
 				},
+				Persistence: &ServerPersistence{
+					Interval: 300,
+					Storage: &ServerPersistenceStorage{
+						StorageFilePath: "./server.db",
+						RestoreOnStart:  false,
+					},
+				},
 			},
 			HasError: false,
 		},
@@ -32,10 +39,23 @@ func TestParseServerCliOptions(t *testing.T) {
 			Arguments: []string{
 				"-a",
 				"127.0.0.1:8090",
+				"-i",
+				"1000",
+				"-f",
+				"/tmp/server.db",
+				"-r",
+				"1",
 			},
 			Config: &ServerConfig{
 				Addr: &ServerAddr{
 					Addr: "127.0.0.1:8090",
+				},
+				Persistence: &ServerPersistence{
+					Interval: 1000,
+					Storage: &ServerPersistenceStorage{
+						StorageFilePath: "/tmp/server.db",
+						RestoreOnStart:  true,
+					},
 				},
 			},
 			HasError: false,
@@ -54,14 +74,24 @@ func TestParseServerCliOptions(t *testing.T) {
 			TestName: "Env options override arguments",
 			Environments: []string{
 				"ADDRESS=127.0.0.1",
+				"RESTORE_ON_START=true",
 			},
 			Arguments: []string{
 				"-a",
 				"127.0.0.1:8090",
+				"-r",
+				"false",
 			},
 			Config: &ServerConfig{
 				Addr: &ServerAddr{
 					Addr: "127.0.0.1",
+				},
+				Persistence: &ServerPersistence{
+					Interval: 300,
+					Storage: &ServerPersistenceStorage{
+						StorageFilePath: "./server.db",
+						RestoreOnStart:  true,
+					},
 				},
 			},
 			HasError: false,

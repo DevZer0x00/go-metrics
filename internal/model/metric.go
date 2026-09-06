@@ -17,7 +17,7 @@ type Metric struct {
 	MType string   `json:"type"`
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
-	Hash  string   `json:"-"`
+	hash  string
 }
 
 func (metric *Metric) UpdateDelta(value int64) int64 {
@@ -43,12 +43,20 @@ func (metric *Metric) ValueToString() string {
 	return ""
 }
 
+func (metric *Metric) Hash() string {
+	if len(metric.hash) == 0 {
+		metric.hash = GetMetricHash(metric.ID)
+	}
+
+	return metric.hash
+}
+
 func NewMetric(name string, mtype string) *Metric {
 	metric := &Metric{
 		ID:    name,
 		MType: mtype,
-		Hash:  GetMetricHash(name),
 	}
+	metric.hash = GetMetricHash(metric.ID)
 
 	switch mtype {
 	case Counter:

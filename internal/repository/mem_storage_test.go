@@ -23,7 +23,7 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	require.NotNil(t, metrics)
 	assert.NotNil(t, metrics.Delta)
 
-	assert.Contains(t, storage.counter, metrics.Hash)
+	assert.Contains(t, storage.counter, metrics.Hash())
 }
 
 func TestUpdateCounter(t *testing.T) {
@@ -50,7 +50,7 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	require.NotNil(t, metrics)
 	assert.NotNil(t, metrics.Value)
 
-	assert.Contains(t, storage.gauge, metrics.Hash)
+	assert.Contains(t, storage.gauge, metrics.Hash())
 }
 
 func TestUpdateGauge(t *testing.T) {

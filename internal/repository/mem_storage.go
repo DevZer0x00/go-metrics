@@ -49,7 +49,7 @@ func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
 }
 
 func (ms *MemStorage) Save(metrics *model.Metric) error {
-	ms.getMetricMapByType(metrics.MType)[metrics.Hash] = metrics
+	ms.getMetricMapByType(metrics.MType)[metrics.Hash()] = metrics
 
 	return nil
 }
