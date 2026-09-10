@@ -1,8 +1,10 @@
 package middleware
 
 import (
+	"io"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"resty.dev/v3"
 )
@@ -40,7 +42,8 @@ func TestRequestGzipCompress(t *testing.T) {
 			client := resty.New()
 			request := client.R().SetBody(test.Body)
 
-			err := RequestGzipCompress(client, request)
+			logger := zerolog.New(io.Discard)
+			err := RequestGzipCompress(&logger)(client, request)
 			assert.NoError(t, err)
 
 			assert.Equal(t, test.ExpectedContentEncoding, request.Header.Get("Content-Encoding"))

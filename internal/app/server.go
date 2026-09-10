@@ -7,21 +7,18 @@ import (
 	"go-metrics/internal/routes"
 	"go-metrics/internal/service"
 	"net/http"
-	"os"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
-func RunServer(environments []string, arguments []string) error {
-	config.InitLog(os.Stdout)
-
+func RunServer(environments []string, arguments []string, logger *zerolog.Logger) error {
 	cfg, err := config.ParseServerOptions(environments, arguments)
 	if err != nil {
 		return fmt.Errorf("parse server options: %w", err)
 	}
 
-	log.
+	logger.
 		Info().
 		Bool("restoreOnStart", cfg.Persistence.Storage.RestoreOnStart).
 		Str("storageFilePath", cfg.Persistence.Storage.StorageFilePath).
@@ -30,28 +27,34 @@ func RunServer(environments []string, arguments []string) error {
 	storage := repository.NewMemStorage()
 	memStoragePersister := service.NewMetricsPersister(
 		storage,
+		logger,
 		cfg.Persistence.Storage.RestoreOnStart,
 		cfg.Persistence.Storage.StorageFilePath,
 	)
 	err = memStoragePersister.Init()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to init memory storage")
+		return err
 	}
 
 	ticker := time.NewTicker(time.Second * time.Duration(cfg.Persistence.Interval))
 	defer ticker.Stop()
 
+	flushFunc := func() {
+		err := memStoragePersister.Flush()
+		if err != nil {
+			logger.Error().Err(err).Msg("failed to flush memory storage")
+		}
+	}
+
 	go func() {
 		for range ticker.C {
-			err := memStoragePersister.Flush()
-			if err != nil {
-				log.Error().Err(err).Msg("failed to flush memory storage")
-			}
+			flushFunc()
 		}
 	}()
+	defer flushFunc()
 
 	metricsService := service.NewMetricsService(storage)
-	router := routes.NewRouter(metricsService)
+	router := routes.NewRouter(metricsService, logger)
 
 	return http.ListenAndServe(cfg.Addr.Addr, router)
 }

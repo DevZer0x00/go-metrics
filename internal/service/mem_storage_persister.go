@@ -9,13 +9,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 type MemMetricsPersister struct {
 	storage         *repository.MemStorage
 	loadOnInit      bool
 	storageFilePath string
+	logger          *zerolog.Logger
 }
 
 func (m *MemMetricsPersister) openStorageFile(flags int) (*os.File, error) {
@@ -31,7 +32,7 @@ func (m *MemMetricsPersister) Init() error {
 	defer func(storageFile *os.File) {
 		err = storageFile.Close()
 		if err != nil {
-			log.Error().Err(err).Msgf("close storage file")
+			m.logger.Error().Err(err).Msgf("close storage file")
 		}
 	}(storageFile)
 
@@ -48,7 +49,7 @@ func (m *MemMetricsPersister) Init() error {
 	if len(storageData) != 0 {
 		err = json.Unmarshal(storageData, &metrics)
 		if err != nil {
-			log.Info().Str("content", string(storageData)).Msgf("storage file content")
+			m.logger.Info().Str("content", string(storageData)).Msgf("storage file content")
 			return fmt.Errorf("unmarshal storage file: %w", err)
 		}
 	}
@@ -72,7 +73,7 @@ func (m *MemMetricsPersister) Flush() error {
 	defer func(storageFile *os.File) {
 		err = storageFile.Close()
 		if err != nil {
-			log.Error().Err(err).Msgf("close storage file")
+			m.logger.Error().Err(err).Msgf("close storage file")
 		}
 	}(storageFile)
 
@@ -104,10 +105,11 @@ func (m *MemMetricsPersister) Flush() error {
 	return nil
 }
 
-func NewMetricsPersister(storage *repository.MemStorage, loadOnInit bool, storageFilePath string) *MemMetricsPersister {
+func NewMetricsPersister(storage *repository.MemStorage, logger *zerolog.Logger, loadOnInit bool, storageFilePath string) *MemMetricsPersister {
 	return &MemMetricsPersister{
 		storage:         storage,
 		loadOnInit:      loadOnInit,
 		storageFilePath: storageFilePath,
+		logger:          logger,
 	}
 }

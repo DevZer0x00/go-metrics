@@ -6,43 +6,37 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 type loggingResponseWriter struct {
 	http.ResponseWriter
-	responseData *struct {
-		statusCode int
-		length     uint64
-		response   []byte
-	}
+	status int
 }
 
 func (w *loggingResponseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
-	w.responseData.statusCode = statusCode
+	w.status = statusCode
 }
 
 func (w *loggingResponseWriter) Write(data []byte) (int, error) {
+	if w.status == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+
 	size, err := w.ResponseWriter.Write(data)
-	w.responseData.length += uint64(len(data))
-	w.responseData.response = append(w.responseData.response, data...)
 
 	return size, err
 }
 
-func LoggingMiddleware() func(next http.Handler) http.Handler {
+func LoggingMiddleware(logger *zerolog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			startTime := time.Now()
 
 			writer := &loggingResponseWriter{
 				ResponseWriter: w,
-				responseData: new(struct {
-					statusCode int
-					length     uint64
-					response   []byte
-				}),
+				status:         0,
 			}
 
 			bodyBytes, err := io.ReadAll(r.Body)
@@ -56,16 +50,10 @@ func LoggingMiddleware() func(next http.Handler) http.Handler {
 			next.ServeHTTP(writer, r)
 			endTime := time.Since(startTime)
 
-			log.Info().
+			logger.Info().
 				Str("requestMethod", r.Method).
 				Str("requestUri", r.URL.RequestURI()).
-				Str("requestContentType", r.Header.Get("Content-Type")).
-				Str("requestEncoding", r.Header.Get("Content-Encoding")).
-				Str("requestBody", string(bodyBytes)).
-				Str("responseBody", string(writer.responseData.response)).
 				Dur("responseTime", endTime).
-				Int("responseCode", writer.responseData.statusCode).
-				Uint64("responseSize", writer.responseData.length).
 				Msg("Incoming request")
 		})
 	}

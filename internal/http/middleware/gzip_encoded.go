@@ -6,16 +6,16 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
-func GzipEncodedMiddleware() func(next http.Handler) http.Handler {
+func GzipEncodedMiddleware(logger *zerolog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("Content-Encoding") == "gzip" {
 				gzipReader, err := gzip.NewReader(r.Body)
 				if err != nil {
-					log.
+					logger.
 						Error().
 						Err(err).
 						Msg("error creating gzip reader")
@@ -29,7 +29,7 @@ func GzipEncodedMiddleware() func(next http.Handler) http.Handler {
 
 				_, err = io.Copy(bodyBuffer, gzipReader)
 				if err != nil {
-					log.
+					logger.
 						Error().
 						Err(err).
 						Msg("error reading body")
@@ -37,14 +37,7 @@ func GzipEncodedMiddleware() func(next http.Handler) http.Handler {
 					return
 				}
 
-				bodyType := http.DetectContentType(bodyBuffer.Bytes())
-				if bodyType != "text/plain; charset=utf-8" {
-					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-					return
-				}
-
 				r.Body = io.NopCloser(bodyBuffer)
-				r.Header.Set("Content-Type", "application/json")
 			}
 
 			next.ServeHTTP(w, r)

@@ -2,14 +2,15 @@ package main
 
 import (
 	"go-metrics/internal/app"
+	"go-metrics/internal/config"
 	"os"
-
-	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	if err := app.RunServer(os.Environ(), os.Args[1:]); err != nil {
-		log.
+	logger := config.InitLog(os.Stdout)
+
+	if err := app.RunServer(os.Environ(), os.Args[1:], logger); err != nil {
+		logger.
 			Fatal().
 			Err(err).
 			Msg("failed to start server")

@@ -6,16 +6,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"resty.dev/v3"
 )
 
 func main() {
-	config.InitLog(os.Stdout)
+	logger := config.InitLog(os.Stdout)
 
 	cfg, err := config.ParseAgentOptions(os.Environ(), os.Args[1:])
 	if err != nil {
-		log.
+		logger.
 			Fatal().
 			Err(err).
 			Msg("error parsing agent options")
@@ -26,11 +25,17 @@ func main() {
 	client := resty.New()
 	defer client.Close()
 
-	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr)
+	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr, logger)
 
 	for {
 		if timer%cfg.Poll.Interval == 0 {
-			agentService.Collect()
+			err = agentService.Collect()
+			if err != nil {
+				logger.
+					Fatal().
+					Err(err).
+					Msg("collect error")
+			}
 		}
 
 		if timer != 0 && timer%cfg.Report.Interval == 0 {

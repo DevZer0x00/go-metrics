@@ -7,16 +7,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	coreMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog"
 )
 
-func NewRouter(metricsService *service.MetricsService) *chi.Mux {
-	updateHandler := handler.NewUpdateMetricsHandler(metricsService)
-	getHandler := handler.NewGetMetricsHandler(metricsService)
+func NewRouter(metricsService *service.MetricsService, logger *zerolog.Logger) *chi.Mux {
+	updateHandler := handler.NewUpdateMetricsHandler(metricsService, logger)
+	getHandler := handler.NewGetMetricsHandler(metricsService, logger)
 
 	router := chi.NewRouter()
 	router.Use(
-		middleware.GzipEncodedMiddleware(),
-		middleware.LoggingMiddleware(),
+		middleware.GzipEncodedMiddleware(logger),
+		middleware.LoggingMiddleware(logger),
 		coreMiddleware.Compress(5, "text/html", "application/json"),
 	)
 

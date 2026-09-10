@@ -26,41 +26,9 @@ var allowedMetricTypes = map[string]bool{
 	model.Gauge:   true,
 }
 
-var validate *validator.Validate
-
-func init() {
-	validate = validator.New()
-	_ = validate.RegisterValidation("notblank", validators.NotBlank)
-	_ = validate.RegisterValidation(
-		"checkMetricValue",
-		func(fl validator.FieldLevel) bool {
-			parentField := fl.Parent()
-
-			switch parentField.FieldByName("MType").String() {
-			case model.Counter:
-				return !parentField.FieldByName("Delta").IsNil()
-			case model.Gauge:
-				return !parentField.FieldByName("Value").IsNil()
-			}
-
-			return true
-		},
-		true,
-	)
-
-	validate.RegisterStructValidationMapRules(
-		map[string]string{
-			"ID":    "required,notblank",
-			"MType": fmt.Sprintf("required,oneof=%s %s", model.Counter, model.Gauge),
-			"Delta": "checkMetricValue",
-			"Value": "checkMetricValue",
-		},
-		model.Metric{},
-	)
-}
-
 type MetricsService struct {
 	repository MetricRepository
+	validate   *validator.Validate
 }
 
 func CheckMetricType(metricType string) error {
@@ -109,7 +77,7 @@ func (service *MetricsService) UpdateFromStringValue(metricType, metricName, met
 }
 
 func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
-	err := validate.Struct(metricReq)
+	err := service.validate.Struct(metricReq)
 	if err != nil {
 		return err
 	}
@@ -135,7 +103,37 @@ func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
 }
 
 func NewMetricsService(repository MetricRepository) *MetricsService {
+	validate := validator.New()
+	_ = validate.RegisterValidation("notblank", validators.NotBlank)
+	_ = validate.RegisterValidation(
+		"checkMetricValue",
+		func(fl validator.FieldLevel) bool {
+			parentField := fl.Parent()
+
+			switch parentField.FieldByName("MType").String() {
+			case model.Counter:
+				return !parentField.FieldByName("Delta").IsNil()
+			case model.Gauge:
+				return !parentField.FieldByName("Value").IsNil()
+			}
+
+			return true
+		},
+		true,
+	)
+
+	validate.RegisterStructValidationMapRules(
+		map[string]string{
+			"ID":    "required,notblank",
+			"MType": fmt.Sprintf("required,oneof=%s %s", model.Counter, model.Gauge),
+			"Delta": "checkMetricValue",
+			"Value": "checkMetricValue",
+		},
+		model.Metric{},
+	)
+
 	return &MetricsService{
 		repository: repository,
+		validate:   validate,
 	}
 }

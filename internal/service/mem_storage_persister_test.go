@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"go-metrics/internal/model"
 	"go-metrics/internal/repository"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewMetricsPersister(t *testing.T) {
 	storage := &repository.MemStorage{}
-
-	persister := NewMetricsPersister(storage, true, "1.db")
+	logger := zerolog.New(io.Discard)
+	persister := NewMetricsPersister(storage, &logger, true, "1.db")
 	assert.Equal(t, storage, persister.storage)
 	assert.True(t, persister.loadOnInit)
 	assert.Equal(t, "1.db", persister.storageFilePath)
@@ -25,8 +27,10 @@ func TestNewMetricsPersister(t *testing.T) {
 func TestMemMetricsPersisterInitWithoutLoad(t *testing.T) {
 	storage := repository.NewMemStorage()
 
+	logger := zerolog.New(io.Discard)
 	persister := NewMetricsPersister(
 		storage,
+		&logger,
 		false,
 		filepath.Join(
 			os.TempDir(),
@@ -60,8 +64,10 @@ func TestMemMetricsPersisterInitWithLoad(t *testing.T) {
 	require.NoError(t, err)
 
 	storage := repository.NewMemStorage()
+	logger := zerolog.New(io.Discard)
 	persister := NewMetricsPersister(
 		storage,
+		&logger,
 		true,
 		dbFile.Name(),
 	)
@@ -79,9 +85,10 @@ func TestMemMetricsPersisterInitWithLoad(t *testing.T) {
 
 func TestMemMetricsPersisterFlush(t *testing.T) {
 	storage := repository.NewMemStorage()
-
+	logger := zerolog.New(io.Discard)
 	persister := NewMetricsPersister(
 		storage,
+		&logger,
 		true,
 		filepath.Join(
 			os.TempDir(),

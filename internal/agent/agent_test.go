@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"resty.dev/v3"
@@ -34,7 +35,9 @@ func TestMetricAgentCollect(t *testing.T) {
 	})
 	client := resty.NewWithClient(httpTestClient)
 
-	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"})
+	logger := zerolog.New(io.Discard)
+
+	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Collect()
 	assert.Equal(t, int64(1), metricsAgent.pollCount)
 	assert.Len(t, metricsAgent.metrics, 27)
@@ -49,7 +52,9 @@ func TestMetricAgentResetAfterSend(t *testing.T) {
 	})
 	client := resty.NewWithClient(httpTestClient)
 
-	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"})
+	logger := zerolog.New(io.Discard)
+
+	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Collect()
 	metricsAgent.resetAfterSend()
 
@@ -66,7 +71,9 @@ func TestMetricAgentSendEmptyMetrics(t *testing.T) {
 	})
 	client := resty.NewWithClient(httpTestClient)
 
-	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"})
+	logger := zerolog.New(io.Discard)
+
+	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Send()
 }
 
@@ -95,7 +102,9 @@ func TestMetricAgentSendMetrics(t *testing.T) {
 	})
 	client := resty.NewWithClient(httpTestClient)
 
-	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"})
+	logger := zerolog.New(io.Discard)
+
+	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Collect()
 	metricsAgent.Send()
 

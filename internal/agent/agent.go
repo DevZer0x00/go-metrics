@@ -7,7 +7,7 @@ import (
 	"go-metrics/internal/resty/middleware"
 	"math/rand"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"resty.dev/v3"
 )
 
@@ -17,6 +17,7 @@ type MetricsAgent struct {
 	pollCount   int64
 	randomValue float64
 	metrics     []MemMetrics
+	logger      *zerolog.Logger
 }
 
 func (a *MetricsAgent) resetAfterSend() {
@@ -25,10 +26,17 @@ func (a *MetricsAgent) resetAfterSend() {
 	a.metrics = make([]MemMetrics, 0)
 }
 
-func (a *MetricsAgent) Collect() {
+func (a *MetricsAgent) Collect() error {
 	a.pollCount++
 	a.randomValue = rand.Float64() * 100
-	a.metrics = CollectMemMetrics()
+	metrics, err := CollectMemMetrics()
+	if err != nil {
+		return err
+	}
+
+	a.metrics = metrics
+
+	return nil
 }
 
 func (a *MetricsAgent) sendReport(metric *model.Metric) error {
@@ -56,7 +64,7 @@ func (a *MetricsAgent) Send() {
 
 		err := a.sendReport(metric)
 		if err != nil {
-			log.Err(err).Msgf("error sending metric for metric %s", memMetric.Label)
+			a.logger.Err(err).Msgf("error sending metric for metric %s", memMetric.Label)
 		}
 	}
 
@@ -66,7 +74,7 @@ func (a *MetricsAgent) Send() {
 		Delta: &a.pollCount,
 	})
 	if err != nil {
-		log.
+		a.logger.
 			Err(err).
 			Str("metricName", "PollCount").
 			Msg("error sending metric")
@@ -78,7 +86,7 @@ func (a *MetricsAgent) Send() {
 		Value: &a.randomValue,
 	})
 	if err != nil {
-		log.
+		a.logger.
 			Err(err).
 			Str("metricName", "RandomValue").
 			Msg("error sending metric")
@@ -87,9 +95,9 @@ func (a *MetricsAgent) Send() {
 	a.resetAfterSend()
 }
 
-func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr) *MetricsAgent {
+func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, logger *zerolog.Logger) *MetricsAgent {
 	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
-	client.AddRequestMiddleware(middleware.RequestGzipCompress)
+	client.AddRequestMiddleware(middleware.RequestGzipCompress(logger))
 
 	return &MetricsAgent{
 		httpClient:  client,
@@ -97,5 +105,6 @@ func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr) *MetricsAgen
 		pollCount:   0,
 		randomValue: 0,
 		metrics:     make([]MemMetrics, 0),
+		logger:      logger,
 	}
 }

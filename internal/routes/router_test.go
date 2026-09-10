@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,7 +90,8 @@ func TestUpdateFromPathHandlerParameters(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			metricsService := service.NewMetricsService(repository.NewMemStorage())
 
-			r := NewRouter(metricsService)
+			logger := zerolog.New(io.Discard)
+			r := NewRouter(metricsService, &logger)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -231,7 +233,8 @@ func TestUpdateFromJSONHandlerFunc(t *testing.T) {
 				recorder := httptest.NewRecorder()
 				metricsService := service.NewMetricsService(repository.NewMemStorage())
 
-				r := NewRouter(metricsService)
+				logger := zerolog.New(io.Discard)
+				r := NewRouter(metricsService, &logger)
 				r.ServeHTTP(recorder, request)
 
 				response := recorder.Result()
@@ -320,7 +323,8 @@ func TestGetMetricHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.Path, nil)
 			recorder := httptest.NewRecorder()
 
-			r := NewRouter(metricsService)
+			logger := zerolog.New(io.Discard)
+			r := NewRouter(metricsService, &logger)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -434,7 +438,8 @@ func TestGetMetricValueHandler(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 
-			r := NewRouter(metricsService)
+			logger := zerolog.New(io.Discard)
+			r := NewRouter(metricsService, &logger)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -480,7 +485,8 @@ func TestAllMetricsHandler(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 
-	r := NewRouter(metricsService)
+	logger := zerolog.New(io.Discard)
+	r := NewRouter(metricsService, &logger)
 	r.ServeHTTP(recorder, request)
 
 	response := recorder.Result()

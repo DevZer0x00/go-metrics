@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 func getMetricsParams(r *http.Request) (string, string, string) {
@@ -16,8 +16,8 @@ func getMetricsParams(r *http.Request) (string, string, string) {
 	return metricType, metricName, metricValue
 }
 
-func internalError(w http.ResponseWriter, msg string, err error) {
-	log.
+func internalError(w http.ResponseWriter, logger *zerolog.Logger, msg string, err error) {
+	logger.
 		Error().
 		Err(err).
 		Msg(msg)
