@@ -2,8 +2,10 @@ package service
 
 import (
 	"go-metrics/internal/model"
+	"io"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +33,19 @@ func (r *TestingRepository) Save(metric *model.Metric) error {
 	return r.saveFunc(metric)
 }
 
+type TestingPersister struct {
+	InitFunc  func() error
+	FlushFunc func() error
+}
+
+func (p *TestingPersister) Init() error {
+	return p.InitFunc()
+}
+
+func (p *TestingPersister) Flush() error {
+	return p.FlushFunc()
+}
+
 func TestMetricsServiceGet(t *testing.T) {
 	rep := &TestingRepository{
 		getOrRegisterFunc: func(mtype, name string) (*model.Metric, error) {
@@ -48,7 +63,8 @@ func TestMetricsServiceGet(t *testing.T) {
 		},
 	}
 
-	service := NewMetricsService(rep)
+	logger := zerolog.New(io.Discard)
+	service := NewMetricsService(rep, &TestingPersister{}, &logger)
 	metric, err := service.Get(model.Counter, "counter")
 	assert.NoError(t, err)
 	assert.NotNil(t, metric)
@@ -64,7 +80,8 @@ func TestMetricsServiceGetAll(t *testing.T) {
 		},
 	}
 
-	service := NewMetricsService(rep)
+	logger := zerolog.New(io.Discard)
+	service := NewMetricsService(rep, &TestingPersister{}, &logger)
 	all, err := service.GetAll()
 	assert.NoError(t, err)
 	assert.Len(t, all, 0)
@@ -89,7 +106,8 @@ func TestUpdateFromStringValueCounter(t *testing.T) {
 		},
 	}
 
-	service := NewMetricsService(rep)
+	logger := zerolog.New(io.Discard)
+	service := NewMetricsService(rep, &TestingPersister{}, &logger)
 	err := service.UpdateFromStringValue(model.Counter, "test", "10")
 	require.NoError(t, err)
 }
@@ -113,7 +131,8 @@ func TestUpdateFromStringValueGauge(t *testing.T) {
 		},
 	}
 
-	service := NewMetricsService(rep)
+	logger := zerolog.New(io.Discard)
+	service := NewMetricsService(rep, &TestingPersister{}, &logger)
 	err := service.UpdateFromStringValue(model.Gauge, "test", "10.12")
 	require.NoError(t, err)
 }

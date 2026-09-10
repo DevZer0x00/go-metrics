@@ -7,7 +7,6 @@ import (
 	"go-metrics/internal/routes"
 	"go-metrics/internal/service"
 	"net/http"
-	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -31,29 +30,14 @@ func RunServer(environments []string, arguments []string, logger *zerolog.Logger
 		cfg.Persistence.Storage.RestoreOnStart,
 		cfg.Persistence.Storage.StorageFilePath,
 	)
-	err = memStoragePersister.Init()
+
+	metricsService := service.NewMetricsService(storage, memStoragePersister, logger)
+	err = metricsService.InitPersister(cfg.Persistence.Interval)
 	if err != nil {
 		return err
 	}
+	defer metricsService.Close()
 
-	ticker := time.NewTicker(time.Second * time.Duration(cfg.Persistence.Interval))
-	defer ticker.Stop()
-
-	flushFunc := func() {
-		err := memStoragePersister.Flush()
-		if err != nil {
-			logger.Error().Err(err).Msg("failed to flush memory storage")
-		}
-	}
-
-	go func() {
-		for range ticker.C {
-			flushFunc()
-		}
-	}()
-	defer flushFunc()
-
-	metricsService := service.NewMetricsService(storage)
 	router := routes.NewRouter(metricsService, logger)
 
 	return http.ListenAndServe(cfg.Addr.Addr, router)

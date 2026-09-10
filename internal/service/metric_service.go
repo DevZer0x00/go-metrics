@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"go-metrics/internal/model"
 	"strconv"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/go-playground/validator/v10/non-standard/validators"
+	"github.com/rs/zerolog"
 )
 
 type MetricRepository interface {
@@ -15,6 +17,11 @@ type MetricRepository interface {
 	Has(mtype, name string) (bool, error)
 	All() ([]*model.Metric, error)
 	Save(metric *model.Metric) error
+}
+
+type MetricPersister interface {
+	Init() error
+	Flush() error
 }
 
 var ErrInvalidMetricValue = errors.New("invalid metric value")
@@ -27,8 +34,12 @@ var allowedMetricTypes = map[string]bool{
 }
 
 type MetricsService struct {
-	repository MetricRepository
-	validate   *validator.Validate
+	repository    MetricRepository
+	persister     MetricPersister
+	validate      *validator.Validate
+	logger        *zerolog.Logger
+	flushTicker   *time.Ticker
+	syncPersister bool
 }
 
 func CheckMetricType(metricType string) error {
@@ -99,10 +110,50 @@ func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
 		return fmt.Errorf("error save metric: %w", err)
 	}
 
+	if service.syncPersister {
+		service.flushPersister()
+	}
+
 	return nil
 }
 
-func NewMetricsService(repository MetricRepository) *MetricsService {
+func (service *MetricsService) flushPersister() {
+	err := service.persister.Flush()
+	if err != nil {
+		service.logger.Error().Err(err).Msg("failed to flush memory storage")
+	}
+}
+
+func (service *MetricsService) InitPersister(persistInterval uint64) error {
+	err := service.persister.Init()
+	if err != nil {
+		return err
+	}
+
+	if persistInterval > 0 {
+		service.flushTicker = time.NewTicker(time.Second * time.Duration(persistInterval))
+
+		go func() {
+			for range service.flushTicker.C {
+				service.flushPersister()
+			}
+		}()
+	} else {
+		service.syncPersister = true
+	}
+
+	return nil
+}
+
+func (service *MetricsService) Close() {
+	if service.flushTicker != nil {
+		service.flushTicker.Stop()
+	}
+
+	service.flushPersister()
+}
+
+func NewMetricsService(repository MetricRepository, persister MetricPersister, logger *zerolog.Logger) *MetricsService {
 	validate := validator.New()
 	_ = validate.RegisterValidation("notblank", validators.NotBlank)
 	_ = validate.RegisterValidation(
@@ -134,6 +185,8 @@ func NewMetricsService(repository MetricRepository) *MetricsService {
 
 	return &MetricsService{
 		repository: repository,
+		persister:  persister,
 		validate:   validate,
+		logger:     logger,
 	}
 }
