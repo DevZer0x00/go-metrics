@@ -10,8 +10,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -88,9 +91,20 @@ func TestUpdateFromPathHandlerParameters(t *testing.T) {
 		t.Run(test.TestName, func(t *testing.T) {
 			request := httptest.NewRequest(test.Method, test.Path, nil)
 			recorder := httptest.NewRecorder()
-			metricsService := service.NewMetricsService(repository.NewMemStorage())
 
+			storage := repository.NewMemStorage()
 			logger := zerolog.New(io.Discard)
+			memStoragePersister := service.NewMetricsPersister(
+				storage,
+				&logger,
+				false,
+				filepath.Join(
+					os.TempDir(),
+					fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
+				),
+			)
+			metricsService := service.NewMetricsService(storage, memStoragePersister, &logger)
+
 			r := NewRouter(metricsService, &logger)
 			r.ServeHTTP(recorder, request)
 
@@ -230,11 +244,21 @@ func TestUpdateFromJSONHandlerFunc(t *testing.T) {
 					}
 				}
 
-				recorder := httptest.NewRecorder()
-				metricsService := service.NewMetricsService(repository.NewMemStorage())
-
+				storage := repository.NewMemStorage()
 				logger := zerolog.New(io.Discard)
+				memStoragePersister := service.NewMetricsPersister(
+					storage,
+					&logger,
+					false,
+					filepath.Join(
+						os.TempDir(),
+						fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
+					),
+				)
+				metricsService := service.NewMetricsService(storage, memStoragePersister, &logger)
+
 				r := NewRouter(metricsService, &logger)
+				recorder := httptest.NewRecorder()
 				r.ServeHTTP(recorder, request)
 
 				response := recorder.Result()
@@ -313,7 +337,17 @@ func TestGetMetricHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
 			repo := repository.NewMemStorage()
-			metricsService := service.NewMetricsService(repo)
+			logger := zerolog.New(io.Discard)
+			memStoragePersister := service.NewMetricsPersister(
+				repo,
+				&logger,
+				false,
+				filepath.Join(
+					os.TempDir(),
+					fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
+				),
+			)
+			metricsService := service.NewMetricsService(repo, memStoragePersister, &logger)
 
 			if test.Metric != nil {
 				err := repo.Save(test.Metric)
@@ -323,7 +357,6 @@ func TestGetMetricHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.Path, nil)
 			recorder := httptest.NewRecorder()
 
-			logger := zerolog.New(io.Discard)
 			r := NewRouter(metricsService, &logger)
 			r.ServeHTTP(recorder, request)
 
@@ -423,7 +456,17 @@ func TestGetMetricValueHandler(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
 			repo := repository.NewMemStorage()
-			metricsService := service.NewMetricsService(repo)
+			logger := zerolog.New(io.Discard)
+			memStoragePersister := service.NewMetricsPersister(
+				repo,
+				&logger,
+				false,
+				filepath.Join(
+					os.TempDir(),
+					fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
+				),
+			)
+			metricsService := service.NewMetricsService(repo, memStoragePersister, &logger)
 
 			if test.Metric != nil {
 				err := repo.Save(test.Metric)
@@ -438,7 +481,6 @@ func TestGetMetricValueHandler(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 
-			logger := zerolog.New(io.Discard)
 			r := NewRouter(metricsService, &logger)
 			r.ServeHTTP(recorder, request)
 
@@ -466,7 +508,17 @@ func TestGetMetricValueHandler(t *testing.T) {
 
 func TestAllMetricsHandler(t *testing.T) {
 	repo := repository.NewMemStorage()
-	metricsService := service.NewMetricsService(repo)
+	logger := zerolog.New(io.Discard)
+	memStoragePersister := service.NewMetricsPersister(
+		repo,
+		&logger,
+		false,
+		filepath.Join(
+			os.TempDir(),
+			fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
+		),
+	)
+	metricsService := service.NewMetricsService(repo, memStoragePersister, &logger)
 
 	metric1, _ := repo.GetOrRegister(model.Counter, "counter1")
 	metric2, _ := repo.GetOrRegister(model.Counter, "counter2")
@@ -485,7 +537,6 @@ func TestAllMetricsHandler(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 
-	logger := zerolog.New(io.Discard)
 	r := NewRouter(metricsService, &logger)
 	r.ServeHTTP(recorder, request)
 

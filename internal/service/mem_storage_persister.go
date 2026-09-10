@@ -19,12 +19,8 @@ type MemMetricsPersister struct {
 	logger          *zerolog.Logger
 }
 
-func (m *MemMetricsPersister) openStorageFile(flags int) (*os.File, error) {
-	return os.OpenFile(m.storageFilePath, flags, 0666)
-}
-
 func (m *MemMetricsPersister) Init() error {
-	storageFile, err := m.openStorageFile(os.O_CREATE | os.O_RDONLY)
+	storageFile, err := os.OpenFile(m.storageFilePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return fmt.Errorf("open storage file: %w", err)
 	}
@@ -65,7 +61,8 @@ func (m *MemMetricsPersister) Init() error {
 }
 
 func (m *MemMetricsPersister) Flush() error {
-	storageFile, err := m.openStorageFile(os.O_CREATE | os.O_WRONLY | os.O_TRUNC)
+	tmpFilePath := m.storageFilePath + ".tmp"
+	storageFile, err := os.OpenFile(tmpFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		return fmt.Errorf("open storage file: %w", err)
 	}
@@ -100,6 +97,11 @@ func (m *MemMetricsPersister) Flush() error {
 	err = storageFile.Sync()
 	if err != nil {
 		return fmt.Errorf("sync metrics: %w", err)
+	}
+
+	err = os.Rename(tmpFilePath, m.storageFilePath)
+	if err != nil {
+		return err
 	}
 
 	return nil
