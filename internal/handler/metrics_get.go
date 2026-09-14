@@ -1,15 +1,20 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"go-metrics/internal/assets"
+	"go-metrics/internal/model"
 	"go-metrics/internal/service"
-	"log"
+	"io"
 	"net/http"
+
+	"github.com/rs/zerolog"
 )
 
 type GetMetricsHandler struct {
 	service *service.MetricsService
+	logger  *zerolog.Logger
 }
 
 func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
@@ -18,7 +23,7 @@ func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
 
 		err := service.CheckMetricType(metricType)
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			badRequest(w)
 			return
 		}
 
@@ -29,15 +34,13 @@ func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
 				return
 			}
 
-			log.Println(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			internalError(w, handler.logger, "get metric from repository", err)
 			return
 		}
 
 		_, err = w.Write([]byte(metric.ValueToString()))
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			internalError(w, handler.logger, "write response", err)
 			return
 		}
 	}
@@ -47,8 +50,7 @@ func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		all, err := handler.service.GetAll()
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			internalError(w, handler.logger, "write response", err)
 			return
 		}
 
@@ -60,20 +62,54 @@ func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
 			}
 		}
 
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		err = assets.ExecuteGetAllMetricsTemplate(w, metricsData)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			internalError(w, handler.logger, "get template", err)
 			return
 		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func NewGetMetricsHandler(service *service.MetricsService) *GetMetricsHandler {
+func (handler *GetMetricsHandler) GetMetricValueHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			internalError(w, handler.logger, "read body", err)
+			return
+		}
+
+		metricReq := &model.Metric{}
+		err = json.Unmarshal(body, &metricReq)
+		if err != nil {
+			handler.logger.Err(err).Msg("unmarshal metric request")
+			badRequest(w)
+			return
+		}
+
+		metric, err := handler.service.Get(metricReq.MType, metricReq.ID)
+		if err != nil {
+			if errors.Is(err, service.ErrMetricNotFound) {
+				http.NotFound(w, r)
+				return
+			}
+
+			internalError(w, handler.logger, "get metric from repository", err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(metric)
+		if err != nil {
+			internalError(w, handler.logger, "json encode error", err)
+			return
+		}
+	}
+}
+
+func NewGetMetricsHandler(service *service.MetricsService, logger *zerolog.Logger) *GetMetricsHandler {
 	return &GetMetricsHandler{
 		service: service,
+		logger:  logger,
 	}
 }

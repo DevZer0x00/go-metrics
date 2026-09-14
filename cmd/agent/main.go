@@ -1,29 +1,41 @@
 package main
 
 import (
-	"fmt"
 	"go-metrics/internal/agent"
 	"go-metrics/internal/config"
-	"log"
-	"net/http"
 	"os"
 	"time"
+
+	"resty.dev/v3"
 )
 
 func main() {
-	cfg, err := config.ParseAgentCliOptions(os.Args[1:])
+	logger := config.InitLog(os.Stdout)
+
+	cfg, err := config.ParseAgentOptions(os.Environ(), os.Args[1:])
 	if err != nil {
-		log.Fatalln(fmt.Errorf("error parsing agent cli options: %w", err))
+		logger.
+			Fatal().
+			Err(err).
+			Msg("error parsing agent options")
 	}
 
 	var timer uint64 = 0
 
-	client := &http.Client{}
-	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr)
+	client := resty.New()
+	defer client.Close()
+
+	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr, logger)
 
 	for {
 		if timer%cfg.Poll.Interval == 0 {
-			agentService.Collect()
+			err = agentService.Collect()
+			if err != nil {
+				logger.
+					Fatal().
+					Err(err).
+					Msg("collect error")
+			}
 		}
 
 		if timer != 0 && timer%cfg.Report.Interval == 0 {

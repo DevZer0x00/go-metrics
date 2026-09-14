@@ -12,9 +12,9 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.counter)
 
-	metrics, err := storage.GetOrRegister(model.Counter, "test")
+	_, err := storage.GetOrRegister(model.Counter, "test")
 	require.NoError(t, err)
-	metrics, err = storage.GetOrRegister(model.Counter, "test")
+	metrics, err := storage.GetOrRegister(model.Counter, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.counter, 1)
@@ -23,7 +23,7 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	require.NotNil(t, metrics)
 	assert.NotNil(t, metrics.Delta)
 
-	assert.Contains(t, storage.counter, metrics.Hash)
+	assert.Contains(t, storage.counter, metrics.Hash())
 }
 
 func TestUpdateCounter(t *testing.T) {
@@ -39,9 +39,9 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.gauge)
 
-	metrics, err := storage.GetOrRegister(model.Gauge, "test")
+	_, err := storage.GetOrRegister(model.Gauge, "test")
 	require.NoError(t, err)
-	metrics, err = storage.GetOrRegister(model.Gauge, "test")
+	metrics, err := storage.GetOrRegister(model.Gauge, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.gauge, 1)
@@ -50,7 +50,7 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	require.NotNil(t, metrics)
 	assert.NotNil(t, metrics.Value)
 
-	assert.Contains(t, storage.gauge, metrics.Hash)
+	assert.Contains(t, storage.gauge, metrics.Hash())
 }
 
 func TestUpdateGauge(t *testing.T) {

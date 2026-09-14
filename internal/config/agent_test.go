@@ -9,14 +9,16 @@ import (
 
 func TestParseAgentCliOptions(t *testing.T) {
 	tests := []struct {
-		TestName  string
-		Arguments []string
-		Config    *AgentConfig
-		HasError  bool
+		TestName     string
+		Environments []string
+		Arguments    []string
+		Config       *AgentConfig
+		HasError     bool
 	}{
 		{
-			TestName:  "Default values",
-			Arguments: []string{},
+			TestName:     "Default values",
+			Environments: []string{},
+			Arguments:    []string{},
 			Config: &AgentConfig{
 				ServerAddr: &ServerAddr{
 					Addr: "localhost:8080",
@@ -31,7 +33,8 @@ func TestParseAgentCliOptions(t *testing.T) {
 			HasError: false,
 		},
 		{
-			TestName: "Set options",
+			TestName:     "Set cli options",
+			Environments: []string{},
 			Arguments: []string{
 				"-a",
 				"127.0.0.1:8090",
@@ -54,7 +57,8 @@ func TestParseAgentCliOptions(t *testing.T) {
 			HasError: false,
 		},
 		{
-			TestName: "Bad options",
+			TestName:     "Bad cli options",
+			Environments: []string{},
 			Arguments: []string{
 				"-ab",
 				"127.0.0.1:8090",
@@ -66,11 +70,39 @@ func TestParseAgentCliOptions(t *testing.T) {
 			Config:   nil,
 			HasError: true,
 		},
+		{
+			TestName: "Env options override arguments",
+			Environments: []string{
+				"ADDRESS=127.0.0.1",
+				"REPORT_INTERVAL=2",
+				"POLL_INTERVAL=3",
+			},
+			Arguments: []string{
+				"-a",
+				"127.0.0.1:8090",
+				"-r",
+				"100",
+				"-p",
+				"200",
+			},
+			Config: &AgentConfig{
+				ServerAddr: &ServerAddr{
+					Addr: "127.0.0.1",
+				},
+				Poll: &PollConfig{
+					Interval: 3,
+				},
+				Report: &ReportConfig{
+					Interval: 2,
+				},
+			},
+			HasError: false,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
-			config, err := ParseAgentCliOptions(test.Arguments)
+			config, err := ParseAgentOptions(test.Environments, test.Arguments)
 			require.Equal(t, test.HasError, err != nil, err)
 			assert.Equal(t, test.Config, config)
 		})
