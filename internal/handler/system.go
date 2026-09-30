@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -14,8 +16,11 @@ type SystemHandler struct {
 
 func (sh *SystemHandler) PingFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := sh.db.PingContext(r.Context())
-		if err != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		defer cancel()
+
+		err := sh.db.PingContext(ctx)
+		if err == nil {
 			w.WriteHeader(http.StatusOK)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)

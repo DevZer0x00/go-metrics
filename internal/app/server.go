@@ -23,6 +23,7 @@ func RunServer(environments []string, arguments []string, logger *zerolog.Logger
 		Info().
 		Bool("restoreOnStart", cfg.Persistence.Storage.RestoreOnStart).
 		Str("storageFilePath", cfg.Persistence.Storage.StorageFilePath).
+		Str("databaseDSN", cfg.Database.DSN).
 		Msg("starting server")
 
 	storage := repository.NewMemStorage()
