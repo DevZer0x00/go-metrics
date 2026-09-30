@@ -30,6 +30,9 @@ func TestParseServerCliOptions(t *testing.T) {
 						RestoreOnStart:  false,
 					},
 				},
+				Database: &Database{
+					DSN: "host=localhost user=pg_user password=pg_password dbname=pg_db sslmode=disable",
+				},
 			},
 			HasError: false,
 		},
@@ -41,6 +44,8 @@ func TestParseServerCliOptions(t *testing.T) {
 				"127.0.0.1:8090",
 				"-i",
 				"1000",
+				"-d",
+				"localhost",
 				"-f",
 				"/tmp/server.db",
 				"-r",
@@ -56,6 +61,9 @@ func TestParseServerCliOptions(t *testing.T) {
 						StorageFilePath: "/tmp/server.db",
 						RestoreOnStart:  true,
 					},
+				},
+				Database: &Database{
+					DSN: "localhost",
 				},
 			},
 			HasError: false,
@@ -75,12 +83,15 @@ func TestParseServerCliOptions(t *testing.T) {
 			Environments: []string{
 				"ADDRESS=127.0.0.1",
 				"RESTORE_ON_START=true",
+				"DATABASE_DSN=localhost1",
 			},
 			Arguments: []string{
 				"-a",
 				"127.0.0.1:8090",
 				"-r",
 				"false",
+				"-d",
+				"localhost",
 			},
 			Config: &ServerConfig{
 				Addr: &ServerAddr{
@@ -92,6 +103,9 @@ func TestParseServerCliOptions(t *testing.T) {
 						StorageFilePath: "./server.db",
 						RestoreOnStart:  true,
 					},
+				},
+				Database: &Database{
+					DSN: "localhost1",
 				},
 			},
 			HasError: false,
