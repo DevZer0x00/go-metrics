@@ -43,7 +43,9 @@ func ParseServerOptions(environments []string, arguments []string) (*ServerConfi
 				RestoreOnStart:  false,
 			},
 		},
-		Database: &Database{},
+		Database: &Database{
+			DSN: "host=localhost user=pg_user password=pg_password dbname=pg_db sslmode=disable",
+		},
 	}
 
 	fs := flag.NewFlagSet("", flag.ContinueOnError)

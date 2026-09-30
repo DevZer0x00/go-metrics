@@ -14,7 +14,7 @@ type SystemHandler struct {
 
 func (sh *SystemHandler) PingFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := sh.db.Ping()
+		err := sh.db.PingContext(r.Context())
 		if err != nil {
 			w.WriteHeader(http.StatusOK)
 		} else {
