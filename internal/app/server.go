@@ -1,6 +1,7 @@
 package app
 
 import (
+	"database/sql"
 	"fmt"
 	"go-metrics/internal/config"
 	"go-metrics/internal/repository"
@@ -8,6 +9,7 @@ import (
 	"go-metrics/internal/service"
 	"net/http"
 
+	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 )
 
@@ -38,7 +40,13 @@ func RunServer(environments []string, arguments []string, logger *zerolog.Logger
 	}
 	defer metricsService.Close()
 
-	router := routes.NewRouter(metricsService, logger)
+	db, err := sql.Open("pgx", cfg.Database.DSN)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	router := routes.NewRouter(metricsService, db, logger)
 
 	return http.ListenAndServe(cfg.Addr.Addr, router)
 }
