@@ -9,7 +9,7 @@ import (
 	"go-metrics/internal/service"
 	"net/http"
 
-	_ "github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
 )
 
