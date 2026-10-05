@@ -24,14 +24,14 @@ func TestParseServerCliOptions(t *testing.T) {
 					Addr: "localhost:8080",
 				},
 				Persistence: &ServerPersistence{
-					Interval: 300,
-					Storage: &ServerPersistenceStorage{
-						StorageFilePath: "./server.db",
+					File: &ServerFilePersistence{
+						StorageFilePath: "",
 						RestoreOnStart:  false,
 					},
-				},
-				Database: &Database{
-					DSN: "host=localhost user=pg_user password=pg_password dbname=pg_db sslmode=disable",
+					Database: &ServerDatabasePersistense{
+						DSN: "",
+					},
+					Interval: 300,
 				},
 			},
 			HasError: false,
@@ -56,14 +56,14 @@ func TestParseServerCliOptions(t *testing.T) {
 					Addr: "127.0.0.1:8090",
 				},
 				Persistence: &ServerPersistence{
-					Interval: 1000,
-					Storage: &ServerPersistenceStorage{
+					File: &ServerFilePersistence{
 						StorageFilePath: "/tmp/server.db",
 						RestoreOnStart:  true,
 					},
-				},
-				Database: &Database{
-					DSN: "localhost",
+					Database: &ServerDatabasePersistense{
+						DSN: "localhost",
+					},
+					Interval: 1000,
 				},
 			},
 			HasError: false,
@@ -98,14 +98,14 @@ func TestParseServerCliOptions(t *testing.T) {
 					Addr: "127.0.0.1",
 				},
 				Persistence: &ServerPersistence{
-					Interval: 300,
-					Storage: &ServerPersistenceStorage{
-						StorageFilePath: "./server.db",
+					File: &ServerFilePersistence{
+						StorageFilePath: "",
 						RestoreOnStart:  true,
 					},
-				},
-				Database: &Database{
-					DSN: "localhost1",
+					Database: &ServerDatabasePersistense{
+						DSN: "localhost1",
+					},
+					Interval: 300,
 				},
 			},
 			HasError: false,

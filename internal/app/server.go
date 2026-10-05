@@ -1,12 +1,14 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"go-metrics/internal/config"
 	"go-metrics/internal/repository"
 	"go-metrics/internal/routes"
 	"go-metrics/internal/service"
+	"go-metrics/migrations"
 	"net/http"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -21,31 +23,35 @@ func RunServer(environments []string, arguments []string, logger *zerolog.Logger
 
 	logger.
 		Info().
-		Bool("restoreOnStart", cfg.Persistence.Storage.RestoreOnStart).
-		Str("storageFilePath", cfg.Persistence.Storage.StorageFilePath).
-		Str("databaseDSN", cfg.Database.DSN).
+		Bool("restoreOnStart", cfg.Persistence.File.RestoreOnStart).
+		Str("storageFilePath", cfg.Persistence.File.StorageFilePath).
+		Str("databaseDSN", cfg.Persistence.Database.DSN).
 		Msg("starting server")
 
-	storage := repository.NewMemStorage()
-	memStoragePersister := service.NewMetricsPersister(
-		storage,
-		logger,
-		cfg.Persistence.Storage.RestoreOnStart,
-		cfg.Persistence.Storage.StorageFilePath,
-	)
+	db, err := sql.Open("pgx", cfg.Persistence.Database.DSN)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 
-	metricsService := service.NewMetricsService(storage, memStoragePersister, logger)
+	ctx := context.Background()
+	storage := service.MetricRepositoryFactory(ctx, db, cfg.Persistence)
+
+	if _, ok := storage.(*repository.PostgresStorage); ok {
+		err = migrations.RunMigrations(ctx, db)
+		if err != nil {
+			return err
+		}
+	}
+
+	persister := service.MetricRepositoryPersisterFactory(storage, cfg.Persistence, logger)
+
+	metricsService := service.NewMetricsService(storage, persister, logger)
 	err = metricsService.InitPersister(cfg.Persistence.Interval)
 	if err != nil {
 		return err
 	}
 	defer metricsService.Close()
-
-	db, err := sql.Open("pgx", cfg.Database.DSN)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
 
 	router := routes.NewRouter(metricsService, db, logger)
 
