@@ -278,6 +278,160 @@ func TestUpdateFromJSONHandlerFunc(t *testing.T) {
 	}
 }
 
+func TestUpdatesFromJSONHandlerFunc(t *testing.T) {
+	tests := []struct {
+		TestName     string
+		Method       string
+		ContentType  string
+		RequestBody  string
+		ResponseBody string
+		StatusCode   int
+	}{
+		{
+			TestName:     "Invalid Content Type",
+			Method:       http.MethodPost,
+			RequestBody:  "",
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+			ContentType:  "text/plain; charset=utf-8",
+		},
+		{
+			TestName:     "Invalid Json",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "gauge", "value: 12.14124}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Metric type not allowed",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "badType", "value": 1214124}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Empty metric name 1",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "    ", "type": "counter", "value": 1214124}]`,
+			StatusCode:   http.StatusNotFound,
+			ResponseBody: "404 page not found\n",
+		},
+		{
+			TestName:     "Empty metric name 2",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"type": "badType", "value": 1214124}]`,
+			StatusCode:   http.StatusNotFound,
+			ResponseBody: "404 page not found\n",
+		},
+		{
+			TestName:     "Invalid metric value 1",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "counter", "delta": "sdsafg"}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value 2",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "counter", "delta": 12.14124}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value 3",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "gauge", "value": "sdgsdg"}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value for metric type counter",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "counter", "value": 12.44}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Invalid metric value for metric type gauge",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "gauge", "delta": 12}]`,
+			StatusCode:   http.StatusBadRequest,
+			ResponseBody: "Bad Request\n",
+		},
+		{
+			TestName:     "Correct counter",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "counter", "delta": 1214124}]`,
+			StatusCode:   http.StatusOK,
+			ResponseBody: "",
+		},
+		{
+			TestName:     "Correct gauge",
+			Method:       http.MethodPost,
+			RequestBody:  `[{"id": "test", "type": "gauge", "value": 12.14124}]`,
+			StatusCode:   http.StatusOK,
+			ResponseBody: "",
+		},
+	}
+
+	for _, compressed := range []bool{true, false} {
+		for _, test := range tests {
+			testName := fmt.Sprintf("%s compressed: %t", test.TestName, compressed)
+
+			t.Run(testName, func(t *testing.T) {
+				if compressed {
+					var buffer bytes.Buffer
+					gzipWriter, _ := gzip.NewWriterLevel(&buffer, gzip.BestCompression)
+					_, _ = gzipWriter.Write([]byte(test.RequestBody))
+					_ = gzipWriter.Close()
+					test.RequestBody = buffer.String()
+				}
+
+				request := httptest.NewRequest(test.Method, "/updates", strings.NewReader(test.RequestBody))
+				if len(test.ContentType) > 0 {
+					request.Header.Set("Content-Type", test.ContentType)
+				} else {
+					if compressed {
+						request.Header.Set("Content-Encoding", "gzip")
+						request.Header.Set("Content-Type", "application/x-gzip")
+					} else {
+						request.Header.Set("Content-Type", "application/json")
+					}
+				}
+
+				storage := repository.NewMemStorage()
+				logger := zerolog.New(io.Discard)
+				memStoragePersister := service.NewMetricsPersister(
+					storage,
+					&logger,
+					false,
+					filepath.Join(
+						os.TempDir(),
+						fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
+					),
+				)
+				metricsService := service.NewMetricsService(storage, memStoragePersister, &logger)
+
+				r := NewRouter(metricsService, &sql.DB{}, &logger)
+				recorder := httptest.NewRecorder()
+				r.ServeHTTP(recorder, request)
+
+				response := recorder.Result()
+
+				defer response.Body.Close()
+
+				body, err := io.ReadAll(response.Body)
+				if err != nil {
+					t.Fatalf("Failed to read response body: %s", err)
+				}
+
+				assert.Equal(t, test.StatusCode, recorder.Code)
+				assert.Equal(t, test.ResponseBody, string(body))
+			})
+		}
+	}
+}
+
 func TestGetMetricHandler(t *testing.T) {
 	delta := int64(35)
 	value := 12.33000

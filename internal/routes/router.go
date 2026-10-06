@@ -26,6 +26,8 @@ func NewRouter(metricsService *service.MetricsService, db *sql.DB, logger *zerol
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", updateHandler.UpdateFromPathHandlerFunc())
 	router.Post("/update", updateHandler.UpdateFromJSONHandlerFunc())
 	router.Post("/update/", updateHandler.UpdateFromJSONHandlerFunc())
+	router.Post("/updates", updateHandler.UpdateBatchFromJSONHandlerFunc())
+	router.Post("/updates/", updateHandler.UpdateBatchFromJSONHandlerFunc())
 
 	router.Get("/value/{metricType}/{metricName}", getHandler.GetHandlerFunc())
 	router.Post("/value", getHandler.GetMetricValueHandler())

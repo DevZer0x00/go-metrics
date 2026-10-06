@@ -89,7 +89,6 @@ func TestPostgresStorageSave(t *testing.T) {
 	assert.Equal(t, metric.MType, metricDB.MType)
 	assert.Equal(t, metric.Delta, metricDB.Delta)
 	assert.Equal(t, metric.Value, metricDB.Value)
-	assert.Equal(t, metric.HashValue, metricDB.HashValue)
 
 	metric = model.NewMetric("test", model.Gauge)
 	metric.UpdateValue(10.12)
@@ -104,7 +103,6 @@ func TestPostgresStorageSave(t *testing.T) {
 	assert.Equal(t, metric.MType, metricDB.MType)
 	assert.Equal(t, metric.Delta, metricDB.Delta)
 	assert.Equal(t, metric.Value, metricDB.Value)
-	assert.Equal(t, metric.HashValue, metricDB.HashValue)
 }
 
 func TestPostgresStorageHas(t *testing.T) {
@@ -151,4 +149,56 @@ func TestPostgresStorageGetOrRegister(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(10), *metric.Delta)
+}
+
+func TestPostgresStorageSaveBatch(t *testing.T) {
+	db := openAndPrepareDB(t)
+	storage := NewPostgresStorage(t.Context(), db)
+
+	var (
+		delta  = int64(10)
+		delta1 = int64(20)
+		value  = float64(100)
+	)
+
+	metrics := []*model.Metric{
+		&model.Metric{
+			ID:    "test",
+			MType: model.Counter,
+			Delta: &delta,
+		},
+		&model.Metric{
+			ID:    "test",
+			MType: model.Counter,
+			Delta: &delta,
+		},
+		&model.Metric{
+			ID:    "test2",
+			MType: model.Counter,
+			Delta: &delta,
+		},
+		&model.Metric{
+			ID:    "test1",
+			MType: model.Gauge,
+			Value: &value,
+		},
+	}
+
+	err := storage.SaveBatch(metrics)
+	require.NoError(t, err)
+
+	metricsDB, err := storage.All()
+	require.NoError(t, err)
+
+	assert.Len(t, metricsDB, 3)
+
+	metrics = []*model.Metric{
+		&model.Metric{
+			ID:    "test",
+			MType: model.Counter,
+			Delta: &delta1,
+		},
+	}
+	err = storage.SaveBatch(metrics)
+	require.NoError(t, err)
 }

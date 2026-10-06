@@ -17,6 +17,7 @@ type MetricRepository interface {
 	Has(mtype, name string) (bool, error)
 	All() ([]*model.Metric, error)
 	Save(metric *model.Metric) error
+	SaveBatch(metrics []*model.Metric) error
 }
 
 type MetricRepositoryPersister interface {
@@ -112,6 +113,28 @@ func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
 
 	if service.syncPersister {
 		service.flushPersister()
+	}
+
+	return nil
+}
+
+func (service *MetricsService) UpdateFromModels(metrics []*model.Metric) error {
+	var errs []error
+
+	for _, metric := range metrics {
+		err := service.validate.Struct(metric)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	err := service.repository.SaveBatch(metrics)
+	if err != nil {
+		return fmt.Errorf("error save batch: %w", err)
 	}
 
 	return nil

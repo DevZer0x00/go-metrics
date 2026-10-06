@@ -8,6 +8,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/jaswdr/faker/v2 v2.10.0
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.12.1

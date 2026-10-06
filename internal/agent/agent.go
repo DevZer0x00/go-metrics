@@ -50,6 +50,17 @@ func (a *MetricsAgent) sendReport(metric *model.Metric) error {
 	return nil
 }
 
+func (a *MetricsAgent) sendReports(metrics []*model.Metric) error {
+	_, err := a.httpClient.R().
+		SetBody(metrics).
+		Post(fmt.Sprintf("http://%s/updates/", a.serverAddr.Addr))
+	if err != nil {
+		return fmt.Errorf("error making request: %w", err)
+	}
+
+	return nil
+}
+
 func (a *MetricsAgent) Send() {
 	if a.pollCount == 0 {
 		return
@@ -90,6 +101,49 @@ func (a *MetricsAgent) Send() {
 			Err(err).
 			Str("metricName", "RandomValue").
 			Msg("error sending metric")
+	}
+
+	a.resetAfterSend()
+}
+
+func (a *MetricsAgent) SendBatch() {
+	if a.pollCount == 0 {
+		return
+	}
+
+	metrics := make([]*model.Metric, len(a.metrics)+2)
+
+	key := 0
+
+	for _, memMetric := range a.metrics {
+		metric := &model.Metric{
+			ID:    memMetric.Label,
+			MType: model.Gauge,
+			Value: &memMetric.Value,
+		}
+
+		metrics[key] = metric
+		key++
+	}
+
+	metrics[key] = &model.Metric{
+		ID:    "PollCount",
+		MType: model.Counter,
+		Delta: &a.pollCount,
+	}
+	key++
+
+	metrics[key] = &model.Metric{
+		ID:    "RandomValue",
+		MType: model.Gauge,
+		Value: &a.randomValue,
+	}
+
+	err := a.sendReports(metrics)
+	if err != nil {
+		a.logger.
+			Err(err).
+			Msg("error sending metrics")
 	}
 
 	a.resetAfterSend()

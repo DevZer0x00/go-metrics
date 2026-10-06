@@ -74,6 +74,43 @@ func (handler *UpdateMetricsHandler) UpdateFromJSONHandlerFunc() http.HandlerFun
 				}
 			}
 		} else if err != nil {
+			internalError(w, handler.logger, "update metric", err)
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (handler *UpdateMetricsHandler) UpdateBatchFromJSONHandlerFunc() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			internalError(w, handler.logger, "read body", err)
+			return
+		}
+
+		metrics := make([]*model.Metric, 0)
+		err = json.Unmarshal(body, &metrics)
+		if err != nil {
+			handler.logger.Err(err).Msg("unmarshal metric request")
+			badRequest(w)
+			return
+		}
+
+		err = handler.service.UpdateFromModels(metrics)
+		var validationErrors validator.ValidationErrors
+		if errors.As(err, &validationErrors) {
+			for _, validationError := range validationErrors {
+				switch validationError.Field() {
+				case "ID":
+					http.NotFound(w, r)
+					return
+				default:
+					badRequest(w)
+					return
+				}
+			}
+		} else if err != nil {
 			internalError(w, handler.logger, "update metrics", err)
 		}
 

@@ -15,6 +15,7 @@ type TestingRepository struct {
 	hasFunc           func(string, string) (bool, error)
 	allFunc           func() ([]*model.Metric, error)
 	saveFunc          func(*model.Metric) error
+	saveBatchFunc     func([]*model.Metric) error
 }
 
 func (r *TestingRepository) GetOrRegister(mtype, name string) (*model.Metric, error) {
@@ -31,6 +32,10 @@ func (r *TestingRepository) All() ([]*model.Metric, error) {
 
 func (r *TestingRepository) Save(metric *model.Metric) error {
 	return r.saveFunc(metric)
+}
+
+func (r *TestingRepository) SaveBatch(metrics []*model.Metric) error {
+	return r.saveBatchFunc(metrics)
 }
 
 type TestingPersister struct {
