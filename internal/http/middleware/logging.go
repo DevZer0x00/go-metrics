@@ -53,6 +53,7 @@ func LoggingMiddleware(logger *zerolog.Logger) func(next http.Handler) http.Hand
 			logger.Info().
 				Str("requestMethod", r.Method).
 				Str("requestUri", r.URL.RequestURI()).
+				Str("requestBody", string(bodyBytes)).
 				Dur("responseTime", endTime).
 				Msg("Incoming request")
 		})

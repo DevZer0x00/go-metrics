@@ -77,3 +77,35 @@ func TestAll(t *testing.T) {
 
 	assert.Len(t, all, 3)
 }
+
+func TestSaveBatch(t *testing.T) {
+	storage := NewMemStorage()
+
+	var (
+		delta = int64(10)
+		value = float64(100)
+	)
+
+	metrics := []*model.Metric{
+		&model.Metric{
+			ID:    "test",
+			MType: model.Counter,
+			Delta: &delta,
+		},
+		&model.Metric{
+			ID:    "test2",
+			MType: model.Counter,
+			Delta: &delta,
+		},
+		&model.Metric{
+			ID:    "test1",
+			MType: model.Gauge,
+			Value: &value,
+		},
+	}
+
+	_ = storage.SaveBatch(metrics)
+
+	assert.Len(t, storage.counter, 2)
+	assert.Len(t, storage.gauge, 1)
+}

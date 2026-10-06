@@ -24,11 +24,14 @@ func TestParseServerCliOptions(t *testing.T) {
 					Addr: "localhost:8080",
 				},
 				Persistence: &ServerPersistence{
-					Interval: 300,
-					Storage: &ServerPersistenceStorage{
-						StorageFilePath: "./server.db",
+					File: &ServerFilePersistence{
+						StorageFilePath: "",
 						RestoreOnStart:  false,
 					},
+					Database: &ServerDatabasePersistense{
+						DSN: "",
+					},
+					Interval: 300,
 				},
 			},
 			HasError: false,
@@ -41,6 +44,8 @@ func TestParseServerCliOptions(t *testing.T) {
 				"127.0.0.1:8090",
 				"-i",
 				"1000",
+				"-d",
+				"localhost",
 				"-f",
 				"/tmp/server.db",
 				"-r",
@@ -51,11 +56,14 @@ func TestParseServerCliOptions(t *testing.T) {
 					Addr: "127.0.0.1:8090",
 				},
 				Persistence: &ServerPersistence{
-					Interval: 1000,
-					Storage: &ServerPersistenceStorage{
+					File: &ServerFilePersistence{
 						StorageFilePath: "/tmp/server.db",
 						RestoreOnStart:  true,
 					},
+					Database: &ServerDatabasePersistense{
+						DSN: "localhost",
+					},
+					Interval: 1000,
 				},
 			},
 			HasError: false,
@@ -75,23 +83,29 @@ func TestParseServerCliOptions(t *testing.T) {
 			Environments: []string{
 				"ADDRESS=127.0.0.1",
 				"RESTORE_ON_START=true",
+				"DATABASE_DSN=localhost1",
 			},
 			Arguments: []string{
 				"-a",
 				"127.0.0.1:8090",
 				"-r",
 				"false",
+				"-d",
+				"localhost",
 			},
 			Config: &ServerConfig{
 				Addr: &ServerAddr{
 					Addr: "127.0.0.1",
 				},
 				Persistence: &ServerPersistence{
-					Interval: 300,
-					Storage: &ServerPersistenceStorage{
-						StorageFilePath: "./server.db",
+					File: &ServerFilePersistence{
+						StorageFilePath: "",
 						RestoreOnStart:  true,
 					},
+					Database: &ServerDatabasePersistense{
+						DSN: "localhost1",
+					},
+					Interval: 300,
 				},
 			},
 			HasError: false,
