@@ -21,7 +21,7 @@ func (handler *UpdateMetricsHandler) UpdateFromPathHandlerFunc() http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType, metricName, metricValue := getMetricsParams(r)
 
-		err := handler.service.UpdateFromStringValue(metricType, metricName, metricValue)
+		err := handler.service.UpdateFromStringValue(r.Context(), metricType, metricName, metricValue)
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			for _, validationError := range validationErrors {
@@ -60,7 +60,7 @@ func (handler *UpdateMetricsHandler) UpdateFromJSONHandlerFunc() http.HandlerFun
 			return
 		}
 
-		err = handler.service.UpdateFromModel(metric)
+		err = handler.service.UpdateFromModel(r.Context(), metric)
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			for _, validationError := range validationErrors {
@@ -97,7 +97,7 @@ func (handler *UpdateMetricsHandler) UpdateBatchFromJSONHandlerFunc() http.Handl
 			return
 		}
 
-		err = handler.service.UpdateFromModels(metrics)
+		err = handler.service.UpdateFromModels(r.Context(), metrics)
 		var validationErrors validator.ValidationErrors
 		if errors.As(err, &validationErrors) {
 			for _, validationError := range validationErrors {

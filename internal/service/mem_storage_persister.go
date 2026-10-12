@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go-metrics/internal/model"
@@ -19,7 +20,7 @@ type MemMetricsPersister struct {
 	logger          *zerolog.Logger
 }
 
-func (m *MemMetricsPersister) Init() error {
+func (m *MemMetricsPersister) Init(ctx context.Context) error {
 	storageFile, err := os.OpenFile(m.storageFilePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return fmt.Errorf("open storage file: %w", err)
@@ -51,7 +52,7 @@ func (m *MemMetricsPersister) Init() error {
 	}
 
 	for _, metric := range metrics {
-		err = m.storage.Save(&metric)
+		err = m.storage.Save(ctx, &metric)
 		if err != nil {
 			return fmt.Errorf("save metric: %w", err)
 		}

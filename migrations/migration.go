@@ -1,7 +1,6 @@
 package migrations
 
 import (
-	"context"
 	"database/sql"
 	"embed"
 
@@ -11,7 +10,7 @@ import (
 //go:embed *.sql
 var fs embed.FS
 
-func RunMigrations(ctx context.Context, db *sql.DB) error {
+func RunMigrations(db *sql.DB) error {
 	goose.SetBaseFS(fs)
 
 	return goose.Up(db, ".")

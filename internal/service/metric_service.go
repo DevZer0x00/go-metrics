@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go-metrics/internal/model"
@@ -16,12 +17,12 @@ type MetricRepository interface {
 	GetOrRegister(mtype, name string) (*model.Metric, error)
 	Has(mtype, name string) (bool, error)
 	All() ([]*model.Metric, error)
-	Save(metric *model.Metric) error
-	SaveBatch(metrics []*model.Metric) error
+	Save(ctx context.Context, metric *model.Metric) error
+	UpdateAndSaveBatch(ctx context.Context, metrics []*model.Metric) error
 }
 
 type MetricRepositoryPersister interface {
-	Init() error
+	Init(ctx context.Context) error
 	Flush() error
 }
 
@@ -65,7 +66,7 @@ func (service *MetricsService) GetAll() ([]*model.Metric, error) {
 	return service.repository.All()
 }
 
-func (service *MetricsService) UpdateFromStringValue(metricType, metricName, metricValue string) error {
+func (service *MetricsService) UpdateFromStringValue(ctx context.Context, metricType, metricName, metricValue string) error {
 	metric := model.NewMetric(metricName, metricType)
 
 	switch metricType {
@@ -85,10 +86,10 @@ func (service *MetricsService) UpdateFromStringValue(metricType, metricName, met
 		*metric.Value = value
 	}
 
-	return service.UpdateFromModel(metric)
+	return service.UpdateFromModel(ctx, metric)
 }
 
-func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
+func (service *MetricsService) UpdateFromModel(ctx context.Context, metricReq *model.Metric) error {
 	err := service.validate.Struct(metricReq)
 	if err != nil {
 		return err
@@ -106,7 +107,7 @@ func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
 		metric.UpdateValue(*metricReq.Value)
 	}
 
-	err = service.repository.Save(metric)
+	err = service.repository.Save(ctx, metric)
 	if err != nil {
 		return fmt.Errorf("error save metric: %w", err)
 	}
@@ -118,7 +119,7 @@ func (service *MetricsService) UpdateFromModel(metricReq *model.Metric) error {
 	return nil
 }
 
-func (service *MetricsService) UpdateFromModels(metrics []*model.Metric) error {
+func (service *MetricsService) UpdateFromModels(ctx context.Context, metrics []*model.Metric) error {
 	var errs []error
 
 	for _, metric := range metrics {
@@ -132,7 +133,7 @@ func (service *MetricsService) UpdateFromModels(metrics []*model.Metric) error {
 		return errors.Join(errs...)
 	}
 
-	err := service.repository.SaveBatch(metrics)
+	err := service.repository.UpdateAndSaveBatch(ctx, metrics)
 	if err != nil {
 		return fmt.Errorf("error save batch: %w", err)
 	}
@@ -147,8 +148,8 @@ func (service *MetricsService) flushPersister() {
 	}
 }
 
-func (service *MetricsService) InitPersister(persistInterval uint64) error {
-	err := service.repositoryPersister.Init()
+func (service *MetricsService) InitPersister(ctx context.Context, persistInterval uint64) error {
+	err := service.repositoryPersister.Init(ctx)
 	if err != nil {
 		return err
 	}
@@ -157,8 +158,13 @@ func (service *MetricsService) InitPersister(persistInterval uint64) error {
 		service.flushTicker = time.NewTicker(time.Second * time.Duration(persistInterval))
 
 		go func() {
-			for range service.flushTicker.C {
-				service.flushPersister()
+			for {
+				select {
+				case <-ctx.Done():
+					service.flushPersister()
+				case <-service.flushTicker.C:
+					service.flushPersister()
+				}
 			}
 		}()
 	} else {

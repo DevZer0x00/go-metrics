@@ -104,7 +104,7 @@ func TestSaveBatch(t *testing.T) {
 		},
 	}
 
-	_ = storage.SaveBatch(metrics)
+	_ = storage.UpdateAndSaveBatch(t.Context(), metrics)
 
 	assert.Len(t, storage.counter, 2)
 	assert.Len(t, storage.gauge, 1)

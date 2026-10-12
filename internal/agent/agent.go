@@ -1,23 +1,29 @@
 package agent
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"go-metrics/internal/config"
+	"go-metrics/internal/helper"
 	"go-metrics/internal/model"
 	"go-metrics/internal/resty/middleware"
 	"math/rand"
+	"net"
+	"time"
 
 	"github.com/rs/zerolog"
 	"resty.dev/v3"
 )
 
 type MetricsAgent struct {
-	httpClient  *resty.Client
-	serverAddr  *config.ServerAddr
-	pollCount   int64
-	randomValue float64
-	metrics     []MemMetrics
-	logger      *zerolog.Logger
+	httpClient      *resty.Client
+	serverAddr      *config.ServerAddr
+	pollCount       int64
+	randomValue     float64
+	metrics         []MemMetrics
+	retryableHelper *helper.RetryableHelper
+	logger          *zerolog.Logger
 }
 
 func (a *MetricsAgent) resetAfterSend() {
@@ -39,29 +45,34 @@ func (a *MetricsAgent) Collect() error {
 	return nil
 }
 
-func (a *MetricsAgent) sendReport(metric *model.Metric) error {
-	_, err := a.httpClient.R().
-		SetBody(metric).
-		Post(fmt.Sprintf("http://%s/update", a.serverAddr.Addr))
-	if err != nil {
-		return fmt.Errorf("error making request: %w", err)
-	}
+func (a *MetricsAgent) sendReport(ctx context.Context, metric *model.Metric) error {
+	return a.retryableHelper.Run(ctx, func() error {
+		_, err := a.httpClient.R().
+			SetBody(metric).
+			Post(fmt.Sprintf("http://%s/update", a.serverAddr.Addr))
+		if err != nil {
+			return fmt.Errorf("error making request: %w", err)
+		}
 
-	return nil
+		return nil
+	})
 }
 
-func (a *MetricsAgent) sendReports(metrics []*model.Metric) error {
-	_, err := a.httpClient.R().
-		SetBody(metrics).
-		Post(fmt.Sprintf("http://%s/updates/", a.serverAddr.Addr))
-	if err != nil {
-		return fmt.Errorf("error making request: %w", err)
-	}
+func (a *MetricsAgent) sendReports(ctx context.Context, metrics []*model.Metric) error {
+	return a.retryableHelper.Run(ctx, func() error {
+		_, err := a.httpClient.R().
+			SetContext(ctx).
+			SetBody(metrics).
+			Post(fmt.Sprintf("http://%s/updates/", a.serverAddr.Addr))
+		if err != nil {
+			return fmt.Errorf("error making request: %w", err)
+		}
 
-	return nil
+		return nil
+	})
 }
 
-func (a *MetricsAgent) Send() {
+func (a *MetricsAgent) Send(ctx context.Context) {
 	if a.pollCount == 0 {
 		return
 	}
@@ -73,16 +84,17 @@ func (a *MetricsAgent) Send() {
 			Value: &memMetric.Value,
 		}
 
-		err := a.sendReport(metric)
+		err := a.sendReport(ctx, metric)
 		if err != nil {
 			a.logger.Err(err).Msgf("error sending metric for metric %s", memMetric.Label)
 		}
 	}
 
-	err := a.sendReport(&model.Metric{
+	delta := a.pollCount
+	err := a.sendReport(ctx, &model.Metric{
 		ID:    "PollCount",
 		MType: model.Counter,
-		Delta: &a.pollCount,
+		Delta: &delta,
 	})
 	if err != nil {
 		a.logger.
@@ -91,10 +103,11 @@ func (a *MetricsAgent) Send() {
 			Msg("error sending metric")
 	}
 
-	err = a.sendReport(&model.Metric{
+	randomValue := a.randomValue
+	err = a.sendReport(ctx, &model.Metric{
 		ID:    "RandomValue",
 		MType: model.Gauge,
-		Value: &a.randomValue,
+		Value: &randomValue,
 	})
 	if err != nil {
 		a.logger.
@@ -106,7 +119,7 @@ func (a *MetricsAgent) Send() {
 	a.resetAfterSend()
 }
 
-func (a *MetricsAgent) SendBatch() {
+func (a *MetricsAgent) SendBatch(ctx context.Context) {
 	if a.pollCount == 0 {
 		return
 	}
@@ -126,20 +139,22 @@ func (a *MetricsAgent) SendBatch() {
 		key++
 	}
 
+	delta := a.pollCount
 	metrics[key] = &model.Metric{
 		ID:    "PollCount",
 		MType: model.Counter,
-		Delta: &a.pollCount,
+		Delta: &delta,
 	}
 	key++
 
+	randomValue := a.randomValue
 	metrics[key] = &model.Metric{
 		ID:    "RandomValue",
 		MType: model.Gauge,
-		Value: &a.randomValue,
+		Value: &randomValue,
 	}
 
-	err := a.sendReports(metrics)
+	err := a.sendReports(ctx, metrics)
 	if err != nil {
 		a.logger.
 			Err(err).
@@ -153,12 +168,28 @@ func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, logger *zero
 	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
 	client.AddRequestMiddleware(middleware.RequestGzipCompress(logger))
 
+	retryableHelper := helper.NewRetryableHelper(
+		&helper.StandardSleeper{},
+		func(err error) bool {
+			var netErr net.Error
+
+			return errors.As(err, &netErr)
+		},
+		[]time.Duration{
+			time.Second,
+			time.Second * 3,
+			time.Second * 5,
+		},
+		logger,
+	)
+
 	return &MetricsAgent{
-		httpClient:  client,
-		serverAddr:  addr,
-		pollCount:   0,
-		randomValue: 0,
-		metrics:     make([]MemMetrics, 0),
-		logger:      logger,
+		httpClient:      client,
+		serverAddr:      addr,
+		pollCount:       0,
+		randomValue:     0,
+		metrics:         make([]MemMetrics, 0),
+		logger:          logger,
+		retryableHelper: retryableHelper,
 	}
 }

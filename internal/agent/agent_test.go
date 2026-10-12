@@ -74,7 +74,7 @@ func TestMetricAgentSendEmptyMetrics(t *testing.T) {
 	logger := zerolog.New(io.Discard)
 
 	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
-	metricsAgent.Send()
+	metricsAgent.Send(t.Context())
 }
 
 func TestMetricAgentSendMetrics(t *testing.T) {
@@ -106,7 +106,7 @@ func TestMetricAgentSendMetrics(t *testing.T) {
 
 	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Collect()
-	metricsAgent.Send()
+	metricsAgent.Send(t.Context())
 
 	assert.Equal(t, int64(0), metricsAgent.pollCount)
 	assert.Equal(t, 29, counter)
@@ -141,7 +141,7 @@ func TestMetricAgentSendBatchMetrics(t *testing.T) {
 
 	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Collect()
-	metricsAgent.SendBatch()
+	metricsAgent.SendBatch(t.Context())
 
 	assert.Equal(t, int64(0), metricsAgent.pollCount)
 	assert.Equal(t, 1, counter)

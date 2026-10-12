@@ -1,8 +1,10 @@
 package service
 
+import "context"
+
 type NopPersister struct{}
 
-func (persister *NopPersister) Init() error {
+func (persister *NopPersister) Init(ctx context.Context) error {
 	return nil
 }
 

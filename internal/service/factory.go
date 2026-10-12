@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"database/sql"
 	"go-metrics/internal/config"
 	"go-metrics/internal/repository"
@@ -10,9 +9,9 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func MetricRepositoryFactory(ctx context.Context, db *sql.DB, cfg *config.ServerPersistence) MetricRepository {
+func MetricRepositoryFactory(db *sql.DB, cfg *config.ServerPersistence, logger *zerolog.Logger) MetricRepository {
 	if len(strings.TrimSpace(cfg.Database.DSN)) > 0 {
-		return repository.NewPostgresStorage(ctx, db)
+		return repository.NewPostgresStorage(db, logger)
 	}
 
 	return repository.NewMemStorage()

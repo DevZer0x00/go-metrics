@@ -505,7 +505,7 @@ func TestGetMetricHandler(t *testing.T) {
 			metricsService := service.NewMetricsService(repo, memStoragePersister, &logger)
 
 			if test.Metric != nil {
-				err := repo.Save(test.Metric)
+				err := repo.Save(t.Context(), test.Metric)
 				require.NoError(t, err)
 			}
 
@@ -624,7 +624,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 			metricsService := service.NewMetricsService(repo, memStoragePersister, &logger)
 
 			if test.Metric != nil {
-				err := repo.Save(test.Metric)
+				err := repo.Save(t.Context(), test.Metric)
 				require.NoError(t, err)
 			}
 
@@ -682,11 +682,11 @@ func TestAllMetricsHandler(t *testing.T) {
 	metric1.UpdateDelta(100)
 	metric2.UpdateDelta(200)
 	metric3.UpdateValue(12.455365436546)
-	err := repo.Save(metric1)
+	err := repo.Save(t.Context(), metric1)
 	require.NoError(t, err)
-	err = repo.Save(metric2)
+	err = repo.Save(t.Context(), metric2)
 	require.NoError(t, err)
-	err = repo.Save(metric3)
+	err = repo.Save(t.Context(), metric3)
 	require.NoError(t, err)
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)

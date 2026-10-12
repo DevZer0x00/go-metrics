@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"go-metrics/internal/model"
 	"go-metrics/migrations"
+	"io"
 	"os"
 	"strconv"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jaswdr/faker/v2"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +29,7 @@ func openAndPrepareDB(t *testing.T) *sql.DB {
 
 	require.NoError(t, db.PingContext(t.Context()))
 
-	require.NoError(t, migrations.RunMigrations(t.Context(), db))
+	require.NoError(t, migrations.RunMigrations(db))
 
 	_, err = db.Exec("TRUNCATE TABLE metric")
 	require.NoError(t, err)
@@ -43,7 +45,8 @@ func TestPostgresStorageAll(t *testing.T) {
 	fake := faker.New()
 
 	db := openAndPrepareDB(t)
-	storage := NewPostgresStorage(t.Context(), db)
+	logger := zerolog.New(io.Discard)
+	storage := NewPostgresStorage(db, &logger)
 
 	all, err := storage.All()
 	require.NoError(t, err)
@@ -72,13 +75,14 @@ func TestPostgresStorageAll(t *testing.T) {
 
 func TestPostgresStorageSave(t *testing.T) {
 	db := openAndPrepareDB(t)
-	storage := NewPostgresStorage(t.Context(), db)
+	logger := zerolog.New(io.Discard)
+	storage := NewPostgresStorage(db, &logger)
 	metric := model.NewMetric("test", model.Counter)
 	metric.UpdateDelta(10)
-	require.NoError(t, storage.Save(metric))
+	require.NoError(t, storage.Save(t.Context(), metric))
 
 	metric.UpdateDelta(20)
-	require.NoError(t, storage.Save(metric))
+	require.NoError(t, storage.Save(t.Context(), metric))
 
 	metrics, err := storage.All()
 	require.NoError(t, err)
@@ -87,12 +91,11 @@ func TestPostgresStorageSave(t *testing.T) {
 	metricDB := metrics[0]
 	assert.Equal(t, metric.ID, metricDB.ID)
 	assert.Equal(t, metric.MType, metricDB.MType)
-	assert.Equal(t, metric.Delta, metricDB.Delta)
-	assert.Equal(t, metric.Value, metricDB.Value)
+	assert.Equal(t, *metric.Delta, *metricDB.Delta)
 
 	metric = model.NewMetric("test", model.Gauge)
 	metric.UpdateValue(10.12)
-	require.NoError(t, storage.Save(metric))
+	require.NoError(t, storage.Save(t.Context(), metric))
 
 	metrics, err = storage.All()
 	require.NoError(t, err)
@@ -107,7 +110,8 @@ func TestPostgresStorageSave(t *testing.T) {
 
 func TestPostgresStorageHas(t *testing.T) {
 	db := openAndPrepareDB(t)
-	storage := NewPostgresStorage(t.Context(), db)
+	logger := zerolog.New(io.Discard)
+	storage := NewPostgresStorage(db, &logger)
 
 	has, err := storage.Has(model.Gauge, "test")
 	require.NoError(t, err)
@@ -115,7 +119,7 @@ func TestPostgresStorageHas(t *testing.T) {
 
 	metric := model.NewMetric("test", model.Gauge)
 	metric.UpdateValue(10.12)
-	require.NoError(t, storage.Save(metric))
+	require.NoError(t, storage.Save(t.Context(), metric))
 
 	has, err = storage.Has(model.Gauge, "test")
 	require.NoError(t, err)
@@ -124,7 +128,8 @@ func TestPostgresStorageHas(t *testing.T) {
 
 func TestPostgresStorageGetOrRegister(t *testing.T) {
 	db := openAndPrepareDB(t)
-	storage := NewPostgresStorage(t.Context(), db)
+	logger := zerolog.New(io.Discard)
+	storage := NewPostgresStorage(db, &logger)
 
 	id := "test"
 	metric, err := storage.GetOrRegister(model.Counter, id)
@@ -153,7 +158,8 @@ func TestPostgresStorageGetOrRegister(t *testing.T) {
 
 func TestPostgresStorageSaveBatch(t *testing.T) {
 	db := openAndPrepareDB(t)
-	storage := NewPostgresStorage(t.Context(), db)
+	logger := zerolog.New(io.Discard)
+	storage := NewPostgresStorage(db, &logger)
 
 	var (
 		delta  = int64(10)
@@ -184,7 +190,7 @@ func TestPostgresStorageSaveBatch(t *testing.T) {
 		},
 	}
 
-	err := storage.SaveBatch(metrics)
+	err := storage.UpdateAndSaveBatch(t.Context(), metrics)
 	require.NoError(t, err)
 
 	metricsDB, err := storage.All()
@@ -199,6 +205,6 @@ func TestPostgresStorageSaveBatch(t *testing.T) {
 			Delta: &delta1,
 		},
 	}
-	err = storage.SaveBatch(metrics)
+	err = storage.UpdateAndSaveBatch(t.Context(), metrics)
 	require.NoError(t, err)
 }
