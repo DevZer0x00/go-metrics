@@ -12,13 +12,18 @@ type ServerAddr struct {
 }
 
 type ServerPersistence struct {
+	File     *ServerFilePersistence
+	Database *ServerDatabasePersistense
 	Interval uint64 `env:"STORE_INTERVAL"`
-	Storage  *ServerPersistenceStorage
 }
 
-type ServerPersistenceStorage struct {
+type ServerFilePersistence struct {
 	StorageFilePath string `env:"FILE_STORAGE_PATH"`
 	RestoreOnStart  bool   `env:"RESTORE"`
+}
+
+type ServerDatabasePersistense struct {
+	DSN string `env:"DATABASE_DSN"`
 }
 
 type ServerConfig struct {
@@ -32,11 +37,14 @@ func ParseServerOptions(environments []string, arguments []string) (*ServerConfi
 			Addr: "localhost:8080",
 		},
 		Persistence: &ServerPersistence{
-			Interval: 300,
-			Storage: &ServerPersistenceStorage{
-				StorageFilePath: "./server.db",
+			File: &ServerFilePersistence{
+				StorageFilePath: "",
 				RestoreOnStart:  false,
 			},
+			Database: &ServerDatabasePersistense{
+				DSN: "",
+			},
+			Interval: 300,
 		},
 	}
 
@@ -44,8 +52,10 @@ func ParseServerOptions(environments []string, arguments []string) (*ServerConfi
 	fs.StringVar(&cfg.Addr.Addr, "a", cfg.Addr.Addr, "address to listen on")
 
 	fs.Uint64Var(&cfg.Persistence.Interval, "i", cfg.Persistence.Interval, "flush metrics on disk interval in seconds")
-	fs.StringVar(&cfg.Persistence.Storage.StorageFilePath, "f", cfg.Persistence.Storage.StorageFilePath, "file path to store metrics")
-	fs.BoolVar(&cfg.Persistence.Storage.RestoreOnStart, "r", cfg.Persistence.Storage.RestoreOnStart, "restore metrics on start")
+	fs.StringVar(&cfg.Persistence.File.StorageFilePath, "f", cfg.Persistence.File.StorageFilePath, "file path to store metrics")
+	fs.BoolVar(&cfg.Persistence.File.RestoreOnStart, "r", cfg.Persistence.File.RestoreOnStart, "restore metrics on start")
+
+	fs.StringVar(&cfg.Persistence.Database.DSN, "d", cfg.Persistence.Database.DSN, "database connection string")
 
 	err := fs.Parse(arguments)
 	if err != nil {

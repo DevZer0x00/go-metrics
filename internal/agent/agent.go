@@ -1,11 +1,15 @@
 package agent
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"go-metrics/internal/config"
 	"go-metrics/internal/model"
 	"go-metrics/internal/resty/middleware"
 	"math/rand"
+	"net"
+	"time"
 
 	"github.com/rs/zerolog"
 	"resty.dev/v3"
@@ -39,10 +43,11 @@ func (a *MetricsAgent) Collect() error {
 	return nil
 }
 
-func (a *MetricsAgent) sendReport(metric *model.Metric) error {
+func (a *MetricsAgent) sendReports(ctx context.Context, metrics []*model.Metric) error {
 	_, err := a.httpClient.R().
-		SetBody(metric).
-		Post(fmt.Sprintf("http://%s/update", a.serverAddr.Addr))
+		SetContext(ctx).
+		SetBody(metrics).
+		Post(fmt.Sprintf("http://%s/updates/", a.serverAddr.Addr))
 	if err != nil {
 		return fmt.Errorf("error making request: %w", err)
 	}
@@ -50,10 +55,14 @@ func (a *MetricsAgent) sendReport(metric *model.Metric) error {
 	return nil
 }
 
-func (a *MetricsAgent) Send() {
+func (a *MetricsAgent) SendBatch(ctx context.Context) {
 	if a.pollCount == 0 {
 		return
 	}
+
+	metrics := make([]*model.Metric, len(a.metrics)+2)
+
+	key := 0
 
 	for _, memMetric := range a.metrics {
 		metric := &model.Metric{
@@ -62,34 +71,30 @@ func (a *MetricsAgent) Send() {
 			Value: &memMetric.Value,
 		}
 
-		err := a.sendReport(metric)
-		if err != nil {
-			a.logger.Err(err).Msgf("error sending metric for metric %s", memMetric.Label)
-		}
+		metrics[key] = metric
+		key++
 	}
 
-	err := a.sendReport(&model.Metric{
+	delta := a.pollCount
+	metrics[key] = &model.Metric{
 		ID:    "PollCount",
 		MType: model.Counter,
-		Delta: &a.pollCount,
-	})
-	if err != nil {
-		a.logger.
-			Err(err).
-			Str("metricName", "PollCount").
-			Msg("error sending metric")
+		Delta: &delta,
 	}
+	key++
 
-	err = a.sendReport(&model.Metric{
+	randomValue := a.randomValue
+	metrics[key] = &model.Metric{
 		ID:    "RandomValue",
 		MType: model.Gauge,
-		Value: &a.randomValue,
-	})
+		Value: &randomValue,
+	}
+
+	err := a.sendReports(ctx, metrics)
 	if err != nil {
 		a.logger.
 			Err(err).
-			Str("metricName", "RandomValue").
-			Msg("error sending metric")
+			Msg("error sending metrics")
 	}
 
 	a.resetAfterSend()
@@ -98,6 +103,23 @@ func (a *MetricsAgent) Send() {
 func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, logger *zerolog.Logger) *MetricsAgent {
 	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
 	client.AddRequestMiddleware(middleware.RequestGzipCompress(logger))
+
+	client.SetRetryAllowNonIdempotent(true)
+	client.SetRetryCount(3)
+	client.AddRetryConditions(func(_ *resty.Response, err error) bool {
+		var netErr net.Error
+
+		return errors.As(err, &netErr)
+	})
+
+	tries := []time.Duration{
+		time.Second,
+		time.Second * 3,
+		time.Second * 5,
+	}
+	client.SetRetryDelayStrategy(func(r *resty.Response, err error) (time.Duration, error) {
+		return tries[r.Request.Attempt-1], nil
+	})
 
 	return &MetricsAgent{
 		httpClient:  client,

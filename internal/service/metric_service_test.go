@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"go-metrics/internal/model"
 	"io"
 	"testing"
@@ -15,6 +16,7 @@ type TestingRepository struct {
 	hasFunc           func(string, string) (bool, error)
 	allFunc           func() ([]*model.Metric, error)
 	saveFunc          func(*model.Metric) error
+	saveBatchFunc     func([]*model.Metric) error
 }
 
 func (r *TestingRepository) GetOrRegister(mtype, name string) (*model.Metric, error) {
@@ -29,8 +31,12 @@ func (r *TestingRepository) All() ([]*model.Metric, error) {
 	return r.allFunc()
 }
 
-func (r *TestingRepository) Save(metric *model.Metric) error {
+func (r *TestingRepository) Save(ctx context.Context, metric *model.Metric) error {
 	return r.saveFunc(metric)
+}
+
+func (r *TestingRepository) UpdateAndSaveBatch(ctx context.Context, metrics []*model.Metric) error {
+	return r.saveBatchFunc(metrics)
 }
 
 type TestingPersister struct {
@@ -38,7 +44,7 @@ type TestingPersister struct {
 	FlushFunc func() error
 }
 
-func (p *TestingPersister) Init() error {
+func (p *TestingPersister) Init(ctx context.Context) error {
 	return p.InitFunc()
 }
 
@@ -108,7 +114,7 @@ func TestUpdateFromStringValueCounter(t *testing.T) {
 
 	logger := zerolog.New(io.Discard)
 	service := NewMetricsService(rep, &TestingPersister{}, &logger)
-	err := service.UpdateFromStringValue(model.Counter, "test", "10")
+	err := service.UpdateFromStringValue(t.Context(), model.Counter, "test", "10")
 	require.NoError(t, err)
 }
 
@@ -133,6 +139,6 @@ func TestUpdateFromStringValueGauge(t *testing.T) {
 
 	logger := zerolog.New(io.Discard)
 	service := NewMetricsService(rep, &TestingPersister{}, &logger)
-	err := service.UpdateFromStringValue(model.Gauge, "test", "10.12")
+	err := service.UpdateFromStringValue(t.Context(), model.Gauge, "test", "10.12")
 	require.NoError(t, err)
 }
