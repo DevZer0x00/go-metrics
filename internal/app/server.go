@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"go-metrics/internal/config"
-	"go-metrics/internal/repository"
 	"go-metrics/internal/routes"
 	"go-metrics/internal/service"
-	"go-metrics/migrations"
 	"net/http"
 	"time"
 
@@ -27,7 +25,6 @@ func RunServer(ctx context.Context, environments []string, arguments []string, l
 		Info().
 		Bool("restoreOnStart", cfg.Persistence.File.RestoreOnStart).
 		Str("storageFilePath", cfg.Persistence.File.StorageFilePath).
-		Str("databaseDSN", cfg.Persistence.Database.DSN).
 		Msg("starting server")
 
 	db, err := sql.Open("pgx", cfg.Persistence.Database.DSN)
@@ -36,13 +33,9 @@ func RunServer(ctx context.Context, environments []string, arguments []string, l
 	}
 	defer db.Close()
 
-	storage := service.MetricRepositoryFactory(db, cfg.Persistence, logger)
-
-	if _, ok := storage.(*repository.PostgresStorage); ok {
-		err = migrations.RunMigrations(db)
-		if err != nil {
-			return err
-		}
+	storage, err := service.MetricRepositoryFactory(db, cfg.Persistence, logger)
+	if err != nil {
+		return err
 	}
 
 	persister := service.MetricRepositoryPersisterFactory(storage, cfg.Persistence, logger)

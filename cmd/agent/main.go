@@ -23,7 +23,12 @@ func main() {
 			Msg("error parsing agent options")
 	}
 
-	logger.Info().Any("cfg", cfg).Msg("starting agent")
+	logger.
+		Info().
+		Str("agentAddr", cfg.ServerAddr.Addr).
+		Uint64("pollInterval", cfg.Poll.Interval).
+		Uint64("reportInterval", cfg.Report.Interval).
+		Msg("starting agent")
 
 	client := resty.New()
 	defer client.Close()

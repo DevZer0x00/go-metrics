@@ -1,4 +1,4 @@
-DATABASE_DSN="user=user password=password dbname=pg sslmode=disable host=localhost port=5433"
+include .env
 
 MIGRATION_NAME := $(word 2, $(MAKECMDGOALS))
 

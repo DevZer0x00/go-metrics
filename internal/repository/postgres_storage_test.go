@@ -46,7 +46,8 @@ func TestPostgresStorageAll(t *testing.T) {
 
 	db := openAndPrepareDB(t)
 	logger := zerolog.New(io.Discard)
-	storage := NewPostgresStorage(db, &logger)
+	storage, err := NewPostgresStorage(db, &logger)
+	require.NoError(t, err)
 
 	all, err := storage.All()
 	require.NoError(t, err)
@@ -76,7 +77,9 @@ func TestPostgresStorageAll(t *testing.T) {
 func TestPostgresStorageSave(t *testing.T) {
 	db := openAndPrepareDB(t)
 	logger := zerolog.New(io.Discard)
-	storage := NewPostgresStorage(db, &logger)
+	storage, err := NewPostgresStorage(db, &logger)
+	require.NoError(t, err)
+
 	metric := model.NewMetric("test", model.Counter)
 	metric.UpdateDelta(10)
 	require.NoError(t, storage.Save(t.Context(), metric))
@@ -111,7 +114,8 @@ func TestPostgresStorageSave(t *testing.T) {
 func TestPostgresStorageHas(t *testing.T) {
 	db := openAndPrepareDB(t)
 	logger := zerolog.New(io.Discard)
-	storage := NewPostgresStorage(db, &logger)
+	storage, err := NewPostgresStorage(db, &logger)
+	require.NoError(t, err)
 
 	has, err := storage.Has(model.Gauge, "test")
 	require.NoError(t, err)
@@ -129,7 +133,8 @@ func TestPostgresStorageHas(t *testing.T) {
 func TestPostgresStorageGetOrRegister(t *testing.T) {
 	db := openAndPrepareDB(t)
 	logger := zerolog.New(io.Discard)
-	storage := NewPostgresStorage(db, &logger)
+	storage, err := NewPostgresStorage(db, &logger)
+	require.NoError(t, err)
 
 	id := "test"
 	metric, err := storage.GetOrRegister(model.Counter, id)
@@ -159,7 +164,8 @@ func TestPostgresStorageGetOrRegister(t *testing.T) {
 func TestPostgresStorageSaveBatch(t *testing.T) {
 	db := openAndPrepareDB(t)
 	logger := zerolog.New(io.Discard)
-	storage := NewPostgresStorage(db, &logger)
+	storage, err := NewPostgresStorage(db, &logger)
+	require.NoError(t, err)
 
 	var (
 		delta  = int64(10)
@@ -190,7 +196,7 @@ func TestPostgresStorageSaveBatch(t *testing.T) {
 		},
 	}
 
-	err := storage.UpdateAndSaveBatch(t.Context(), metrics)
+	err = storage.UpdateAndSaveBatch(t.Context(), metrics)
 	require.NoError(t, err)
 
 	metricsDB, err := storage.All()

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go-metrics/internal/helper"
 	"go-metrics/internal/model"
+	"go-metrics/migrations"
 	"maps"
 	"slices"
 	"time"
@@ -206,7 +207,12 @@ func (ps *PostgresStorage) UpdateAndSaveBatch(ctx context.Context, metrics []*mo
 	})
 }
 
-func NewPostgresStorage(db *sql.DB, logger *zerolog.Logger) *PostgresStorage {
+func NewPostgresStorage(db *sql.DB, logger *zerolog.Logger) (*PostgresStorage, error) {
+	err := migrations.RunMigrations(db)
+	if err != nil {
+		return nil, err
+	}
+
 	retryableHelper := helper.NewRetryableHelper(
 		&helper.StandardSleeper{},
 		func(err error) bool {
@@ -239,5 +245,5 @@ func NewPostgresStorage(db *sql.DB, logger *zerolog.Logger) *PostgresStorage {
 		db:              db,
 		logger:          logger,
 		retryableHelper: retryableHelper,
-	}
+	}, nil
 }
