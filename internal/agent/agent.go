@@ -2,11 +2,14 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go-metrics/internal/config"
+	"go-metrics/internal/helper"
 	"go-metrics/internal/model"
 	"go-metrics/internal/resty/middleware"
 	"math/rand"
+	"net"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -14,12 +17,13 @@ import (
 )
 
 type MetricsAgent struct {
-	httpClient  *resty.Client
-	serverAddr  *config.ServerAddr
-	pollCount   int64
-	randomValue float64
-	metrics     []MemMetrics
-	logger      *zerolog.Logger
+	httpClient      *resty.Client
+	serverAddr      *config.ServerAddr
+	pollCount       int64
+	randomValue     float64
+	metrics         []MemMetrics
+	retryableHelper *helper.RetryableHelper
+	logger          *zerolog.Logger
 }
 
 func (a *MetricsAgent) resetAfterSend() {
@@ -42,15 +46,17 @@ func (a *MetricsAgent) Collect() error {
 }
 
 func (a *MetricsAgent) sendReports(ctx context.Context, metrics []*model.Metric) error {
-	_, err := a.httpClient.R().
-		SetContext(ctx).
-		SetBody(metrics).
-		Post(fmt.Sprintf("http://%s/updates/", a.serverAddr.Addr))
-	if err != nil {
-		return fmt.Errorf("error making request: %w", err)
-	}
+	return a.retryableHelper.Run(ctx, func() error {
+		_, err := a.httpClient.R().
+			SetContext(ctx).
+			SetBody(metrics).
+			Post(fmt.Sprintf("http://%s/updates/", a.serverAddr.Addr))
+		if err != nil {
+			return fmt.Errorf("error making request: %w", err)
+		}
 
-	return nil
+		return nil
+	})
 }
 
 func (a *MetricsAgent) SendBatch(ctx context.Context) {
@@ -102,31 +108,28 @@ func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, logger *zero
 	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
 	client.AddRequestMiddleware(middleware.RequestGzipCompress(logger))
 
-	client.SetRetryAllowNonIdempotent(true)
-	client.SetRetryCount(3)
-	client.AddRetryConditions(func(_ *resty.Response, err error) bool {
-		if err == nil {
-			return false
-		}
+	retryableHelper := helper.NewRetryableHelper(
+		&helper.StandardSleeper{},
+		func(err error) bool {
+			var netErr net.Error
 
-		return true
-	})
-
-	tries := []time.Duration{
-		time.Second,
-		time.Second * 3,
-		time.Second * 5,
-	}
-	client.SetRetryDelayStrategy(func(r *resty.Response, err error) (time.Duration, error) {
-		return tries[r.Request.Attempt-1], nil
-	})
+			return errors.As(err, &netErr)
+		},
+		[]time.Duration{
+			time.Second,
+			time.Second * 3,
+			time.Second * 5,
+		},
+		logger,
+	)
 
 	return &MetricsAgent{
-		httpClient:  client,
-		serverAddr:  addr,
-		pollCount:   0,
-		randomValue: 0,
-		metrics:     make([]MemMetrics, 0),
-		logger:      logger,
+		httpClient:      client,
+		serverAddr:      addr,
+		pollCount:       0,
+		randomValue:     0,
+		metrics:         make([]MemMetrics, 0),
+		logger:          logger,
+		retryableHelper: retryableHelper,
 	}
 }
