@@ -47,7 +47,8 @@ func RunServer(ctx context.Context, environments []string, arguments []string, l
 	}
 	defer metricsService.Close()
 
-	router := routes.NewRouter(metricsService, db, logger)
+	pinger := service.PingerFactory(db, cfg.Persistence)
+	router := routes.NewRouter(metricsService, pinger, logger)
 
 	server := &http.Server{
 		Addr:    cfg.Addr.Addr,

@@ -26,10 +26,23 @@ func MetricRepositoryPersisterFactory(repo MetricRepository, cfg *config.ServerP
 		return NewNopPersister()
 	}
 
+	repo, ok := repo.(*repository.MemStorage)
+	if !ok {
+		return NewNopPersister()
+	}
+
 	return NewMetricsPersister(
 		repo.(*repository.MemStorage),
 		logger,
 		cfg.File.RestoreOnStart,
 		cfg.File.StorageFilePath,
 	)
+}
+
+func PingerFactory(db *sql.DB, cfg *config.ServerPersistence) Pinger {
+	if len(strings.TrimSpace(cfg.Database.DSN)) > 0 {
+		return NewDBPinger(db)
+	}
+
+	return &NopPinger{}
 }

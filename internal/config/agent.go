@@ -24,13 +24,13 @@ type AgentConfig struct {
 func ParseAgentOptions(environments []string, arguments []string) (*AgentConfig, error) {
 	cfg := &AgentConfig{
 		ServerAddr: &ServerAddr{
-			Addr: "localhost:8090",
+			Addr: "localhost:8080",
 		},
 		Poll: &PollConfig{
 			Interval: 2,
 		},
 		Report: &ReportConfig{
-			Interval: 1,
+			Interval: 10,
 		},
 	}
 

@@ -2,13 +2,11 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"go-metrics/internal/config"
 	"go-metrics/internal/model"
 	"go-metrics/internal/resty/middleware"
 	"math/rand"
-	"net"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -107,9 +105,11 @@ func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, logger *zero
 	client.SetRetryAllowNonIdempotent(true)
 	client.SetRetryCount(3)
 	client.AddRetryConditions(func(_ *resty.Response, err error) bool {
-		var netErr net.Error
+		if err == nil {
+			return false
+		}
 
-		return errors.As(err, &netErr)
+		return true
 	})
 
 	tries := []time.Duration{

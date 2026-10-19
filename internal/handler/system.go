@@ -2,7 +2,7 @@ package handler
 
 import (
 	"context"
-	"database/sql"
+	"go-metrics/internal/service"
 	"net/http"
 	"time"
 
@@ -10,7 +10,7 @@ import (
 )
 
 type SystemHandler struct {
-	db     *sql.DB
+	pinger service.Pinger
 	logger *zerolog.Logger
 }
 
@@ -19,7 +19,7 @@ func (sh *SystemHandler) PingFunc() http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 		defer cancel()
 
-		err := sh.db.PingContext(ctx)
+		err := sh.pinger.Ping(ctx)
 		if err == nil {
 			w.WriteHeader(http.StatusOK)
 		} else {
@@ -28,9 +28,9 @@ func (sh *SystemHandler) PingFunc() http.HandlerFunc {
 	}
 }
 
-func NewSystemHandler(db *sql.DB, logger *zerolog.Logger) *SystemHandler {
+func NewSystemHandler(pinger service.Pinger, logger *zerolog.Logger) *SystemHandler {
 	return &SystemHandler{
-		db:     db,
+		pinger: pinger,
 		logger: logger,
 	}
 }

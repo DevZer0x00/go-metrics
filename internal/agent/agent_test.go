@@ -84,7 +84,9 @@ func TestMetricAgentSendBatchMetrics(t *testing.T) {
 		err = json.Unmarshal(bodyBytes, &metrics)
 		require.NoError(t, err)
 
-		return &http.Response{}, nil
+		return &http.Response{
+			StatusCode: http.StatusOK,
+		}, nil
 	})
 	client := resty.NewWithClient(httpTestClient)
 

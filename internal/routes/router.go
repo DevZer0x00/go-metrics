@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"database/sql"
 	"go-metrics/internal/handler"
 	"go-metrics/internal/http/middleware"
 	"go-metrics/internal/service"
@@ -11,10 +10,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewRouter(metricsService *service.MetricsService, db *sql.DB, logger *zerolog.Logger) *chi.Mux {
+func NewRouter(metricsService *service.MetricsService, pinger service.Pinger, logger *zerolog.Logger) *chi.Mux {
 	updateHandler := handler.NewUpdateMetricsHandler(metricsService, logger)
 	getHandler := handler.NewGetMetricsHandler(metricsService, logger)
-	systemHandler := handler.NewSystemHandler(db, logger)
+	systemHandler := handler.NewSystemHandler(pinger, logger)
 
 	router := chi.NewRouter()
 	router.Use(

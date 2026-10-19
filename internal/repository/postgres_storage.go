@@ -90,8 +90,13 @@ func (ps *PostgresStorage) Has(mtype, name string) (bool, error) {
 		mtype,
 	)
 
-	if errors.Is(row.Scan(), sql.ErrNoRows) {
-		return false, nil
+	err := row.Scan()
+	if err != nil {
+		if errors.Is(row.Scan(), sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, err
 	}
 
 	return true, nil
@@ -226,7 +231,9 @@ func NewPostgresStorage(db *sql.DB, logger *zerolog.Logger) (*PostgresStorage, e
 					pgerrcode.ConnectionFailure,
 					pgerrcode.SQLClientUnableToEstablishSQLConnection,
 					pgerrcode.TransactionResolutionUnknown,
-					pgerrcode.ProtocolViolation:
+					pgerrcode.ProtocolViolation,
+					pgerrcode.SerializationFailure,
+					pgerrcode.DeadlockDetected:
 					return true
 				}
 			}
