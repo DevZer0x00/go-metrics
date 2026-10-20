@@ -12,6 +12,10 @@ import (
 
 func RequestGzipCompress(logger *zerolog.Logger) func(_ *resty.Client, request *resty.Request) error {
 	return func(_ *resty.Client, request *resty.Request) error {
+		if request.Attempt > 1 {
+			return nil
+		}
+
 		var bodyBytes []byte
 		var err error
 

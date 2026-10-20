@@ -90,7 +90,9 @@ func (ps *PostgresStorage) Has(mtype, name string) (bool, error) {
 		mtype,
 	)
 
-	err := row.Scan()
+	var has bool
+
+	err := row.Scan(&has)
 	if err != nil {
 		if errors.Is(row.Scan(), sql.ErrNoRows) {
 			return false, nil
@@ -99,7 +101,7 @@ func (ps *PostgresStorage) Has(mtype, name string) (bool, error) {
 		return false, err
 	}
 
-	return true, nil
+	return has, nil
 }
 
 func (ps *PostgresStorage) Save(ctx context.Context, metric *model.Metric) error {
