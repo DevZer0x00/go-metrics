@@ -61,7 +61,7 @@ func (m *MemMetricsPersister) Init(ctx context.Context) error {
 	return nil
 }
 
-func (m *MemMetricsPersister) Flush() error {
+func (m *MemMetricsPersister) Flush(ctx context.Context) error {
 	tmpFilePath := m.storageFilePath + ".tmp"
 	storageFile, err := os.OpenFile(tmpFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
@@ -75,7 +75,7 @@ func (m *MemMetricsPersister) Flush() error {
 		}
 	}(storageFile)
 
-	metrics, err := m.storage.All()
+	metrics, err := m.storage.All(ctx)
 	if err != nil {
 		return fmt.Errorf("get all metrics: %w", err)
 	}

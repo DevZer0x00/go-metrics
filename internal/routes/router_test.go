@@ -674,9 +674,9 @@ func TestAllMetricsHandler(t *testing.T) {
 	)
 	metricsService := service.NewMetricsService(repo, memStoragePersister, &logger)
 
-	metric1, _ := repo.GetOrRegister(model.Counter, "counter1")
-	metric2, _ := repo.GetOrRegister(model.Counter, "counter2")
-	metric3, _ := repo.GetOrRegister(model.Gauge, "gauge1")
+	metric1, _ := repo.GetOrRegister(t.Context(), model.Counter, "counter1")
+	metric2, _ := repo.GetOrRegister(t.Context(), model.Counter, "counter2")
+	metric3, _ := repo.GetOrRegister(t.Context(), model.Gauge, "gauge1")
 
 	metric1.UpdateDelta(100)
 	metric2.UpdateDelta(200)

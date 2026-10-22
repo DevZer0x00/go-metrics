@@ -14,16 +14,16 @@ import (
 )
 
 type MetricRepository interface {
-	GetOrRegister(mtype, name string) (*model.Metric, error)
-	Has(mtype, name string) (bool, error)
-	All() ([]*model.Metric, error)
+	GetOrRegister(ctx context.Context, mtype, name string) (*model.Metric, error)
+	Has(ctx context.Context, mtype, name string) (bool, error)
+	All(ctx context.Context) ([]*model.Metric, error)
 	Save(ctx context.Context, metric *model.Metric) error
 	UpdateAndSaveBatch(ctx context.Context, metrics []*model.Metric) error
 }
 
 type MetricRepositoryPersister interface {
 	Init(ctx context.Context) error
-	Flush() error
+	Flush(ctx context.Context) error
 }
 
 var ErrInvalidMetricValue = errors.New("invalid metric value")
@@ -52,18 +52,18 @@ func CheckMetricType(metricType string) error {
 	return nil
 }
 
-func (service *MetricsService) Get(metricType, metricName string) (*model.Metric, error) {
-	if has, err := service.repository.Has(metricType, metricName); err != nil {
+func (service *MetricsService) Get(ctx context.Context, metricType, metricName string) (*model.Metric, error) {
+	if has, err := service.repository.Has(ctx, metricType, metricName); err != nil {
 		return nil, err
 	} else if !has {
 		return nil, ErrMetricNotFound
 	}
 
-	return service.repository.GetOrRegister(metricType, metricName)
+	return service.repository.GetOrRegister(ctx, metricType, metricName)
 }
 
-func (service *MetricsService) GetAll() ([]*model.Metric, error) {
-	return service.repository.All()
+func (service *MetricsService) GetAll(ctx context.Context) ([]*model.Metric, error) {
+	return service.repository.All(ctx)
 }
 
 func (service *MetricsService) UpdateFromStringValue(ctx context.Context, metricType, metricName, metricValue string) error {
@@ -95,7 +95,7 @@ func (service *MetricsService) UpdateFromModel(ctx context.Context, metricReq *m
 		return err
 	}
 
-	metric, err := service.repository.GetOrRegister(metricReq.MType, metricReq.ID)
+	metric, err := service.repository.GetOrRegister(ctx, metricReq.MType, metricReq.ID)
 	if err != nil {
 		return fmt.Errorf("error getting metrics from repository: %w", err)
 	}
@@ -113,7 +113,7 @@ func (service *MetricsService) UpdateFromModel(ctx context.Context, metricReq *m
 	}
 
 	if service.syncPersister {
-		service.flushPersister()
+		service.flushPersister(ctx)
 	}
 
 	return nil
@@ -141,8 +141,8 @@ func (service *MetricsService) UpdateFromModels(ctx context.Context, metrics []*
 	return nil
 }
 
-func (service *MetricsService) flushPersister() {
-	err := service.repositoryPersister.Flush()
+func (service *MetricsService) flushPersister(ctx context.Context) {
+	err := service.repositoryPersister.Flush(ctx)
 	if err != nil {
 		service.logger.Error().Err(err).Msg("failed to flush memory storage")
 	}
@@ -161,9 +161,9 @@ func (service *MetricsService) InitPersister(ctx context.Context, persistInterva
 			for {
 				select {
 				case <-ctx.Done():
-					service.flushPersister()
+					service.flushPersister(ctx)
 				case <-service.flushTicker.C:
-					service.flushPersister()
+					service.flushPersister(ctx)
 				}
 			}
 		}()
@@ -174,12 +174,12 @@ func (service *MetricsService) InitPersister(ctx context.Context, persistInterva
 	return nil
 }
 
-func (service *MetricsService) Close() {
+func (service *MetricsService) Close(ctx context.Context) {
 	if service.flushTicker != nil {
 		service.flushTicker.Stop()
 	}
 
-	service.flushPersister()
+	service.flushPersister(ctx)
 }
 
 func NewMetricsService(repository MetricRepository, persister MetricRepositoryPersister, logger *zerolog.Logger) *MetricsService {

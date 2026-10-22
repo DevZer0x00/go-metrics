@@ -19,15 +19,15 @@ type TestingRepository struct {
 	saveBatchFunc     func([]*model.Metric) error
 }
 
-func (r *TestingRepository) GetOrRegister(mtype, name string) (*model.Metric, error) {
+func (r *TestingRepository) GetOrRegister(ctx context.Context, mtype, name string) (*model.Metric, error) {
 	return r.getOrRegisterFunc(mtype, name)
 }
 
-func (r *TestingRepository) Has(mtype, name string) (bool, error) {
+func (r *TestingRepository) Has(ctx context.Context, mtype, name string) (bool, error) {
 	return r.hasFunc(mtype, name)
 }
 
-func (r *TestingRepository) All() ([]*model.Metric, error) {
+func (r *TestingRepository) All(ctx context.Context) ([]*model.Metric, error) {
 	return r.allFunc()
 }
 
@@ -48,7 +48,7 @@ func (p *TestingPersister) Init(ctx context.Context) error {
 	return p.InitFunc()
 }
 
-func (p *TestingPersister) Flush() error {
+func (p *TestingPersister) Flush(ctx context.Context) error {
 	return p.FlushFunc()
 }
 
@@ -71,11 +71,11 @@ func TestMetricsServiceGet(t *testing.T) {
 
 	logger := zerolog.New(io.Discard)
 	service := NewMetricsService(rep, &TestingPersister{}, &logger)
-	metric, err := service.Get(model.Counter, "counter")
+	metric, err := service.Get(t.Context(), model.Counter, "counter")
 	assert.NoError(t, err)
 	assert.NotNil(t, metric)
 
-	_, err = service.Get(model.Gauge, "gauge")
+	_, err = service.Get(t.Context(), model.Gauge, "gauge")
 	assert.ErrorAs(t, err, &ErrMetricNotFound)
 }
 
@@ -88,7 +88,7 @@ func TestMetricsServiceGetAll(t *testing.T) {
 
 	logger := zerolog.New(io.Discard)
 	service := NewMetricsService(rep, &TestingPersister{}, &logger)
-	all, err := service.GetAll()
+	all, err := service.GetAll(t.Context())
 	assert.NoError(t, err)
 	assert.Len(t, all, 0)
 }

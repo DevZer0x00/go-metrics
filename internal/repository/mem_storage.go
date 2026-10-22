@@ -32,7 +32,7 @@ func (ms *MemStorage) getMetricMapByType(mtype string) map[string]*model.Metric 
 	return metricMap
 }
 
-func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
+func (ms *MemStorage) GetOrRegister(ctx context.Context, mtype, name string) (*model.Metric, error) {
 	hash := model.GetMetricHash(name)
 
 	var err error
@@ -63,14 +63,14 @@ func (ms *MemStorage) UpdateAndSaveBatch(ctx context.Context, metrics []*model.M
 	return nil
 }
 
-func (ms *MemStorage) Has(mtype, name string) (bool, error) {
+func (ms *MemStorage) Has(ctx context.Context, mtype, name string) (bool, error) {
 	hash := model.GetMetricHash(name)
 	_, ok := ms.getMetricMapByType(mtype)[hash]
 
 	return ok, nil
 }
 
-func (ms *MemStorage) All() ([]*model.Metric, error) {
+func (ms *MemStorage) All(ctx context.Context) ([]*model.Metric, error) {
 	res := make([]*model.Metric, 0, len(ms.counter)+len(ms.gauge))
 
 	res = append(res, slices.Collect(maps.Values(ms.counter))...)

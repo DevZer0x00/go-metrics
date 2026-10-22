@@ -8,7 +8,7 @@ func (persister *NopPersister) Init(ctx context.Context) error {
 	return nil
 }
 
-func (persister *NopPersister) Flush() error {
+func (persister *NopPersister) Flush(ctx context.Context) error {
 	return nil
 }
 

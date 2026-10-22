@@ -75,11 +75,11 @@ func TestMemMetricsPersisterInitWithLoad(t *testing.T) {
 	err = persister.Init(t.Context())
 	require.NoError(t, err)
 
-	metrics, err := storage.All()
+	metrics, err := storage.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, metrics, 2)
 
-	has, _ := storage.Has(model.Gauge, "LastGC")
+	has, _ := storage.Has(t.Context(), model.Gauge, "LastGC")
 	assert.True(t, has)
 }
 
@@ -104,7 +104,7 @@ func TestMemMetricsPersisterFlush(t *testing.T) {
 	err = storage.Save(t.Context(), model.NewMetric("test", "gauge"))
 	require.NoError(t, err)
 
-	err = persister.Flush()
+	err = persister.Flush(t.Context())
 	require.NoError(t, err)
 
 	err = persister.Init(t.Context())

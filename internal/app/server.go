@@ -45,7 +45,7 @@ func RunServer(ctx context.Context, environments []string, arguments []string, l
 	if err != nil {
 		return err
 	}
-	defer metricsService.Close()
+	defer metricsService.Close(ctx)
 
 	pinger := service.PingerFactory(db, cfg.Persistence)
 	router := routes.NewRouter(metricsService, pinger, logger)

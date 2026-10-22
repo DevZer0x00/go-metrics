@@ -49,7 +49,7 @@ func TestPostgresStorageAll(t *testing.T) {
 	storage, err := NewPostgresStorage(db, &logger)
 	require.NoError(t, err)
 
-	all, err := storage.All()
+	all, err := storage.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, all, 0)
 
@@ -68,7 +68,7 @@ func TestPostgresStorageAll(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	metrics, err := storage.All()
+	metrics, err := storage.All(t.Context())
 	require.NoError(t, err)
 
 	assert.Len(t, metrics, 5)
@@ -87,7 +87,7 @@ func TestPostgresStorageSave(t *testing.T) {
 	metric.UpdateDelta(20)
 	require.NoError(t, storage.Save(t.Context(), metric))
 
-	metrics, err := storage.All()
+	metrics, err := storage.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, metrics, 1)
 
@@ -100,7 +100,7 @@ func TestPostgresStorageSave(t *testing.T) {
 	metric.UpdateValue(10.12)
 	require.NoError(t, storage.Save(t.Context(), metric))
 
-	metrics, err = storage.All()
+	metrics, err = storage.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, metrics, 2)
 
@@ -117,7 +117,7 @@ func TestPostgresStorageHas(t *testing.T) {
 	storage, err := NewPostgresStorage(db, &logger)
 	require.NoError(t, err)
 
-	has, err := storage.Has(model.Gauge, "test")
+	has, err := storage.Has(t.Context(), model.Gauge, "test")
 	require.NoError(t, err)
 	assert.False(t, has)
 
@@ -125,7 +125,7 @@ func TestPostgresStorageHas(t *testing.T) {
 	metric.UpdateValue(10.12)
 	require.NoError(t, storage.Save(t.Context(), metric))
 
-	has, err = storage.Has(model.Gauge, "test")
+	has, err = storage.Has(t.Context(), model.Gauge, "test")
 	require.NoError(t, err)
 	assert.True(t, has)
 }
@@ -137,7 +137,7 @@ func TestPostgresStorageGetOrRegister(t *testing.T) {
 	require.NoError(t, err)
 
 	id := "test"
-	metric, err := storage.GetOrRegister(model.Counter, id)
+	metric, err := storage.GetOrRegister(t.Context(), model.Counter, id)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", metric.ID)
@@ -155,7 +155,7 @@ func TestPostgresStorageGetOrRegister(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	metric, err = storage.GetOrRegister(model.Counter, id)
+	metric, err = storage.GetOrRegister(t.Context(), model.Counter, id)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(10), *metric.Delta)
@@ -199,7 +199,7 @@ func TestPostgresStorageSaveBatch(t *testing.T) {
 	err = storage.UpdateAndSaveBatch(t.Context(), metrics)
 	require.NoError(t, err)
 
-	metricsDB, err := storage.All()
+	metricsDB, err := storage.All(t.Context())
 	require.NoError(t, err)
 
 	assert.Len(t, metricsDB, 3)

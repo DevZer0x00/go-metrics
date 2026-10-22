@@ -24,19 +24,23 @@ type PostgresStorage struct {
 	retryableHelper *helper.RetryableHelper
 }
 
-func (ps *PostgresStorage) GetOrRegister(mtype, id string) (*model.Metric, error) {
-	row := ps.db.QueryRow(
-		"SELECT delta, value FROM metric WHERE hash = $1 AND mtype = $2 ",
-		model.GetMetricHash(id),
-		mtype,
-	)
-
+func (ps *PostgresStorage) GetOrRegister(ctx context.Context, mtype, id string) (*model.Metric, error) {
 	var (
+		row   *sql.Row
 		delta sql.NullInt64
 		value sql.NullFloat64
 	)
 
-	err := row.Scan(&delta, &value)
+	err := ps.retryableHelper.Run(ctx, func() error {
+		row = ps.db.QueryRowContext(
+			ctx,
+			"SELECT delta, value FROM metric WHERE hash = $1 AND mtype = $2 ",
+			model.GetMetricHash(id),
+			mtype,
+		)
+
+		return row.Scan(&delta, &value)
+	})
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.NewMetric(id, mtype), nil
@@ -54,47 +58,65 @@ func (ps *PostgresStorage) GetOrRegister(mtype, id string) (*model.Metric, error
 	return metric, err
 }
 
-func (ps *PostgresStorage) All() ([]*model.Metric, error) {
-	rows, err := ps.db.Query(
-		"SELECT id, mtype, delta, value FROM metric ORDER BY mtype, hash",
+func (ps *PostgresStorage) All(ctx context.Context) ([]*model.Metric, error) {
+	var (
+		err    error
+		rows   *sql.Rows
+		models []*model.Metric
 	)
-	if err != nil {
-		return nil, err
-	}
+
+	err = ps.retryableHelper.Run(ctx, func() error {
+		rows, err = ps.db.Query(
+			"SELECT id, mtype, delta, value FROM metric ORDER BY mtype, hash",
+		)
+		if err != nil {
+			return err
+		}
+
+		models = make([]*model.Metric, 0)
+
+		for rows.Next() {
+			metric := &model.Metric{}
+			err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
+			if err != nil {
+				return err
+			}
+
+			models = append(models, metric)
+		}
+
+		if rows.Err() != nil {
+			return rows.Err()
+		}
+
+		return nil
+	})
 
 	defer rows.Close()
 
-	models := make([]*model.Metric, 0)
-
-	for rows.Next() {
-		metric := &model.Metric{}
-		err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
-		if err != nil {
-			return nil, err
-		}
-
-		models = append(models, metric)
-	}
-
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-
-	return models, nil
+	return models, err
 }
 
-func (ps *PostgresStorage) Has(mtype, name string) (bool, error) {
-	row := ps.db.QueryRow(
-		"SELECT 1 FROM metric WHERE hash = $1 AND mtype = $2 ",
-		model.GetMetricHash(name),
-		mtype,
+func (ps *PostgresStorage) Has(ctx context.Context, mtype, name string) (bool, error) {
+	var (
+		row *sql.Row
+		err error
+		has bool
 	)
 
-	var has bool
+	err = ps.retryableHelper.Run(ctx, func() error {
+		row = ps.db.QueryRowContext(
+			ctx,
+			"SELECT 1 FROM metric WHERE hash = $1 AND mtype = $2 ",
+			model.GetMetricHash(name),
+			mtype,
+		)
 
-	err := row.Scan(&has)
+		return row.Scan(&has)
+	})
+
 	if err != nil {
-		if errors.Is(row.Scan(), sql.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
 

@@ -12,9 +12,9 @@ func TestGetOrRegisterCounter(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.counter)
 
-	_, err := storage.GetOrRegister(model.Counter, "test")
+	_, err := storage.GetOrRegister(t.Context(), model.Counter, "test")
 	require.NoError(t, err)
-	metrics, err := storage.GetOrRegister(model.Counter, "test")
+	metrics, err := storage.GetOrRegister(t.Context(), model.Counter, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.counter, 1)
@@ -28,7 +28,7 @@ func TestGetOrRegisterCounter(t *testing.T) {
 
 func TestUpdateCounter(t *testing.T) {
 	storage := NewMemStorage()
-	metric, err := storage.GetOrRegister(model.Counter, "test")
+	metric, err := storage.GetOrRegister(t.Context(), model.Counter, "test")
 	require.NoError(t, err)
 
 	metric.UpdateDelta(10)
@@ -39,9 +39,9 @@ func TestGetOrRegisterGauge(t *testing.T) {
 	storage := NewMemStorage()
 	require.NotNil(t, storage.gauge)
 
-	_, err := storage.GetOrRegister(model.Gauge, "test")
+	_, err := storage.GetOrRegister(t.Context(), model.Gauge, "test")
 	require.NoError(t, err)
-	metrics, err := storage.GetOrRegister(model.Gauge, "test")
+	metrics, err := storage.GetOrRegister(t.Context(), model.Gauge, "test")
 	require.NoError(t, err)
 
 	assert.Len(t, storage.gauge, 1)
@@ -55,7 +55,7 @@ func TestGetOrRegisterGauge(t *testing.T) {
 
 func TestUpdateGauge(t *testing.T) {
 	storage := NewMemStorage()
-	metric, err := storage.GetOrRegister(model.Gauge, "test")
+	metric, err := storage.GetOrRegister(t.Context(), model.Gauge, "test")
 	require.NoError(t, err)
 
 	metric.UpdateValue(10)
@@ -65,14 +65,14 @@ func TestUpdateGauge(t *testing.T) {
 func TestAll(t *testing.T) {
 	storage := NewMemStorage()
 
-	_, err := storage.GetOrRegister(model.Counter, "test1")
+	_, err := storage.GetOrRegister(t.Context(), model.Counter, "test1")
 	require.NoError(t, err)
-	_, err = storage.GetOrRegister(model.Counter, "test2")
+	_, err = storage.GetOrRegister(t.Context(), model.Counter, "test2")
 	require.NoError(t, err)
-	_, err = storage.GetOrRegister(model.Gauge, "test1")
+	_, err = storage.GetOrRegister(t.Context(), model.Gauge, "test1")
 	require.NoError(t, err)
 
-	all, err := storage.All()
+	all, err := storage.All(t.Context())
 	require.NoError(t, err)
 
 	assert.Len(t, all, 3)
