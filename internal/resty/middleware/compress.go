@@ -12,6 +12,10 @@ import (
 
 func RequestGzipCompress(logger *zerolog.Logger) func(_ *resty.Client, request *resty.Request) error {
 	return func(_ *resty.Client, request *resty.Request) error {
+		if request.Attempt > 1 {
+			return nil
+		}
+
 		var bodyBytes []byte
 		var err error
 
@@ -20,6 +24,12 @@ func RequestGzipCompress(logger *zerolog.Logger) func(_ *resty.Client, request *
 			bodyBytes = b
 		case string:
 			bodyBytes = []byte(b)
+		case []*model.Metric:
+			bodyBytes, err = json.Marshal(b)
+			if err != nil {
+				logger.Error().Err(err).Msg("failed to json marshal metrics")
+				return nil
+			}
 		case *model.Metric:
 			bodyBytes, err = json.Marshal(b)
 			if err != nil {

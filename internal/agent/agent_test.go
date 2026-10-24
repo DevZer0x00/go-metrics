@@ -63,21 +63,7 @@ func TestMetricAgentResetAfterSend(t *testing.T) {
 	assert.Empty(t, metricsAgent.randomValue)
 }
 
-func TestMetricAgentSendEmptyMetrics(t *testing.T) {
-	httpTestClient := newTestClient(func(req *http.Request) (*http.Response, error) {
-		t.Fatal("should not be called")
-
-		return &http.Response{}, nil
-	})
-	client := resty.NewWithClient(httpTestClient)
-
-	logger := zerolog.New(io.Discard)
-
-	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
-	metricsAgent.Send()
-}
-
-func TestMetricAgentSendMetrics(t *testing.T) {
+func TestMetricAgentSendBatchMetrics(t *testing.T) {
 	counter := 0
 
 	httpTestClient := newTestClient(func(req *http.Request) (*http.Response, error) {
@@ -94,11 +80,13 @@ func TestMetricAgentSendMetrics(t *testing.T) {
 		bodyBytes, err := io.ReadAll(gzipReader)
 		require.NoError(t, err)
 
-		metric := &model.Metric{}
-		err = json.Unmarshal(bodyBytes, &metric)
+		metrics := make([]*model.Metric, 0)
+		err = json.Unmarshal(bodyBytes, &metrics)
 		require.NoError(t, err)
 
-		return &http.Response{}, nil
+		return &http.Response{
+			StatusCode: http.StatusOK,
+		}, nil
 	})
 	client := resty.NewWithClient(httpTestClient)
 
@@ -106,8 +94,8 @@ func TestMetricAgentSendMetrics(t *testing.T) {
 
 	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, &logger)
 	metricsAgent.Collect()
-	metricsAgent.Send()
+	metricsAgent.SendBatch(t.Context())
 
 	assert.Equal(t, int64(0), metricsAgent.pollCount)
-	assert.Equal(t, 29, counter)
+	assert.Equal(t, 1, counter)
 }

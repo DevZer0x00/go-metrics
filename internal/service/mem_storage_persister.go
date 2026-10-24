@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"go-metrics/internal/model"
@@ -19,7 +20,7 @@ type MemMetricsPersister struct {
 	logger          *zerolog.Logger
 }
 
-func (m *MemMetricsPersister) Init() error {
+func (m *MemMetricsPersister) Init(ctx context.Context) error {
 	storageFile, err := os.OpenFile(m.storageFilePath, os.O_CREATE|os.O_RDONLY, 0666)
 	if err != nil {
 		return fmt.Errorf("open storage file: %w", err)
@@ -51,7 +52,7 @@ func (m *MemMetricsPersister) Init() error {
 	}
 
 	for _, metric := range metrics {
-		err = m.storage.Save(&metric)
+		err = m.storage.Save(ctx, &metric)
 		if err != nil {
 			return fmt.Errorf("save metric: %w", err)
 		}
@@ -60,7 +61,7 @@ func (m *MemMetricsPersister) Init() error {
 	return nil
 }
 
-func (m *MemMetricsPersister) Flush() error {
+func (m *MemMetricsPersister) Flush(ctx context.Context) error {
 	tmpFilePath := m.storageFilePath + ".tmp"
 	storageFile, err := os.OpenFile(tmpFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
@@ -74,7 +75,7 @@ func (m *MemMetricsPersister) Flush() error {
 		}
 	}(storageFile)
 
-	metrics, err := m.storage.All()
+	metrics, err := m.storage.All(ctx)
 	if err != nil {
 		return fmt.Errorf("get all metrics: %w", err)
 	}

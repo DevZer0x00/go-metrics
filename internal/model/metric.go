@@ -51,9 +51,9 @@ func (metric *Metric) Hash() string {
 	return metric.hash
 }
 
-func NewMetric(name string, mtype string) *Metric {
+func NewMetric(id string, mtype string) *Metric {
 	metric := &Metric{
-		ID:    name,
+		ID:    id,
 		MType: mtype,
 	}
 	metric.hash = GetMetricHash(metric.ID)
@@ -68,6 +68,6 @@ func NewMetric(name string, mtype string) *Metric {
 	return metric
 }
 
-func GetMetricHash(name string) string {
-	return fmt.Sprintf("%x", md5.Sum([]byte(name)))
+func GetMetricHash(id string) string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(id)))
 }

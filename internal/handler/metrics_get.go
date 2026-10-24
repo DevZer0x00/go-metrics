@@ -27,7 +27,7 @@ func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
 			return
 		}
 
-		metric, err := handler.service.Get(metricType, metricName)
+		metric, err := handler.service.Get(r.Context(), metricType, metricName)
 		if err != nil {
 			if errors.Is(err, service.ErrMetricNotFound) {
 				http.NotFound(w, r)
@@ -48,7 +48,7 @@ func (handler *GetMetricsHandler) GetHandlerFunc() http.HandlerFunc {
 
 func (handler *GetMetricsHandler) GetAllMetricsHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		all, err := handler.service.GetAll()
+		all, err := handler.service.GetAll(r.Context())
 		if err != nil {
 			internalError(w, handler.logger, "write response", err)
 			return
@@ -87,7 +87,7 @@ func (handler *GetMetricsHandler) GetMetricValueHandler() http.HandlerFunc {
 			return
 		}
 
-		metric, err := handler.service.Get(metricReq.MType, metricReq.ID)
+		metric, err := handler.service.Get(r.Context(), metricReq.MType, metricReq.ID)
 		if err != nil {
 			if errors.Is(err, service.ErrMetricNotFound) {
 				http.NotFound(w, r)

@@ -10,9 +10,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewRouter(metricsService *service.MetricsService, logger *zerolog.Logger) *chi.Mux {
+func NewRouter(metricsService *service.MetricsService, pinger service.Pinger, logger *zerolog.Logger) *chi.Mux {
 	updateHandler := handler.NewUpdateMetricsHandler(metricsService, logger)
 	getHandler := handler.NewGetMetricsHandler(metricsService, logger)
+	systemHandler := handler.NewSystemHandler(pinger, logger)
 
 	router := chi.NewRouter()
 	router.Use(
@@ -24,11 +25,15 @@ func NewRouter(metricsService *service.MetricsService, logger *zerolog.Logger) *
 	router.Post("/update/{metricType}/{metricName}/{metricValue}", updateHandler.UpdateFromPathHandlerFunc())
 	router.Post("/update", updateHandler.UpdateFromJSONHandlerFunc())
 	router.Post("/update/", updateHandler.UpdateFromJSONHandlerFunc())
+	router.Post("/updates", updateHandler.UpdateBatchFromJSONHandlerFunc())
+	router.Post("/updates/", updateHandler.UpdateBatchFromJSONHandlerFunc())
 
 	router.Get("/value/{metricType}/{metricName}", getHandler.GetHandlerFunc())
 	router.Post("/value", getHandler.GetMetricValueHandler())
 	router.Post("/value/", getHandler.GetMetricValueHandler())
 	router.Get("/", getHandler.GetAllMetricsHandlerFunc())
+
+	router.Get("/ping", systemHandler.PingFunc())
 
 	return router
 }

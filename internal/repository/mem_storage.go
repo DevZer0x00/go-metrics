@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"go-metrics/internal/model"
 	"maps"
 	"slices"
@@ -31,7 +32,7 @@ func (ms *MemStorage) getMetricMapByType(mtype string) map[string]*model.Metric 
 	return metricMap
 }
 
-func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
+func (ms *MemStorage) GetOrRegister(ctx context.Context, mtype, name string) (*model.Metric, error) {
 	hash := model.GetMetricHash(name)
 
 	var err error
@@ -39,7 +40,7 @@ func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
 	metrics, ok := ms.getMetricMapByType(mtype)[hash]
 	if !ok {
 		metrics = model.NewMetric(name, mtype)
-		err = ms.Save(metrics)
+		err = ms.Save(context.TODO(), metrics)
 		if err != nil {
 			return nil, err
 		}
@@ -48,20 +49,28 @@ func (ms *MemStorage) GetOrRegister(mtype, name string) (*model.Metric, error) {
 	return metrics, nil
 }
 
-func (ms *MemStorage) Save(metrics *model.Metric) error {
-	ms.getMetricMapByType(metrics.MType)[metrics.Hash()] = metrics
+func (ms *MemStorage) Save(ctx context.Context, metric *model.Metric) error {
+	ms.getMetricMapByType(metric.MType)[metric.Hash()] = metric
 
 	return nil
 }
 
-func (ms *MemStorage) Has(mtype, name string) (bool, error) {
+func (ms *MemStorage) UpdateAndSaveBatch(ctx context.Context, metrics []*model.Metric) error {
+	for _, metric := range metrics {
+		ms.getMetricMapByType(metric.MType)[metric.Hash()] = metric
+	}
+
+	return nil
+}
+
+func (ms *MemStorage) Has(ctx context.Context, mtype, name string) (bool, error) {
 	hash := model.GetMetricHash(name)
 	_, ok := ms.getMetricMapByType(mtype)[hash]
 
 	return ok, nil
 }
 
-func (ms *MemStorage) All() ([]*model.Metric, error) {
+func (ms *MemStorage) All(ctx context.Context) ([]*model.Metric, error) {
 	res := make([]*model.Metric, 0, len(ms.counter)+len(ms.gauge))
 
 	res = append(res, slices.Collect(maps.Values(ms.counter))...)

@@ -37,7 +37,7 @@ func TestMemMetricsPersisterInitWithoutLoad(t *testing.T) {
 			fmt.Sprintf("service%s.db", time.Now().Format("20060102150405")),
 		),
 	)
-	err := persister.Init()
+	err := persister.Init(t.Context())
 	require.NoError(t, err)
 
 	stat, err := os.Stat(persister.storageFilePath)
@@ -72,14 +72,14 @@ func TestMemMetricsPersisterInitWithLoad(t *testing.T) {
 		dbFile.Name(),
 	)
 
-	err = persister.Init()
+	err = persister.Init(t.Context())
 	require.NoError(t, err)
 
-	metrics, err := storage.All()
+	metrics, err := storage.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, metrics, 2)
 
-	has, _ := storage.Has(model.Gauge, "LastGC")
+	has, _ := storage.Has(t.Context(), model.Gauge, "LastGC")
 	assert.True(t, has)
 }
 
@@ -96,17 +96,17 @@ func TestMemMetricsPersisterFlush(t *testing.T) {
 		),
 	)
 
-	err := persister.Init()
+	err := persister.Init(t.Context())
 	require.NoError(t, err)
 
-	err = storage.Save(model.NewMetric("LastGC", "counter"))
+	err = storage.Save(t.Context(), model.NewMetric("LastGC", "counter"))
 	require.NoError(t, err)
-	err = storage.Save(model.NewMetric("test", "gauge"))
-	require.NoError(t, err)
-
-	err = persister.Flush()
+	err = storage.Save(t.Context(), model.NewMetric("test", "gauge"))
 	require.NoError(t, err)
 
-	err = persister.Init()
+	err = persister.Flush(t.Context())
+	require.NoError(t, err)
+
+	err = persister.Init(t.Context())
 	require.NoError(t, err)
 }
