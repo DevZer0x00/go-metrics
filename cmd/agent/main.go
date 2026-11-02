@@ -28,6 +28,7 @@ func main() {
 		Str("agentAddr", cfg.ServerAddr.Addr).
 		Uint64("pollInterval", cfg.Poll.Interval).
 		Uint64("reportInterval", cfg.Report.Interval).
+		Str("hashKey", cfg.HeaderHashKey).
 		Msg("starting agent")
 
 	client := resty.New()
@@ -36,7 +37,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr, logger)
+	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr, cfg.HeaderHashKey, logger)
 
 	collectTick := time.NewTicker(time.Duration(cfg.Poll.Interval) * time.Second)
 	defer collectTick.Stop()
