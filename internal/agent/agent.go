@@ -100,9 +100,10 @@ func (a *MetricsAgent) SendBatch(ctx context.Context) {
 	a.resetAfterSend()
 }
 
-func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, logger *zerolog.Logger) *MetricsAgent {
+func NewMetricsAgent(client *resty.Client, addr *config.ServerAddr, hashKey string, logger *zerolog.Logger) *MetricsAgent {
 	client.AddContentTypeEncoder("application/json", resty.InMemoryJSONMarshal)
 	client.AddRequestMiddleware(middleware.RequestGzipCompress(logger))
+	client.AddRequestMiddleware(middleware.RequestHeaderHasher(hashKey))
 
 	client.SetRetryAllowNonIdempotent(true)
 	client.SetRetryCount(3)
