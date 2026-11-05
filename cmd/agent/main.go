@@ -4,8 +4,10 @@ import (
 	"context"
 	"go-metrics/internal/agent"
 	"go-metrics/internal/config"
+	"go-metrics/internal/model"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -39,28 +41,90 @@ func main() {
 
 	agentService := agent.NewMetricsAgent(client, cfg.ServerAddr, cfg.HeaderHashKey, logger)
 
-	collectTick := time.NewTicker(time.Duration(cfg.Poll.Interval) * time.Second)
-	defer collectTick.Stop()
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		collectTick := time.NewTicker(time.Duration(cfg.Poll.Interval) * time.Second)
+		defer collectTick.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-collectTick.C:
+				err := agentService.CollectMemMetrics(ctx)
+				if err != nil {
+					logger.
+						Fatal().
+						Err(err).
+						Msg("collect error")
+				}
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		collectTick := time.NewTicker(time.Duration(cfg.Poll.Interval) * time.Second)
+		defer collectTick.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-collectTick.C:
+				err := agentService.CollectGopsutilMetrics(ctx)
+				if err != nil {
+					logger.
+						Fatal().
+						Err(err).
+						Msg("collect gopsutil error")
+				}
+			}
+		}
+	}()
+
+	jobs := make(chan []*model.Metric, cfg.RateLimit)
+
+	for i := uint64(0); i < cfg.RateLimit; i++ {
+		go func() {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case metrics, ok := <-jobs:
+					if !ok {
+						return
+					}
+
+					err := agentService.SendReports(ctx, metrics)
+					if err != nil {
+						logger.
+							Fatal().
+							Err(err).
+							Msg("send reports")
+					}
+				}
+			}
+		}()
+	}
 
 	reportTick := time.NewTicker(time.Duration(cfg.Report.Interval) * time.Second)
 	defer reportTick.Stop()
 
-	agentService.Collect()
-
 	for {
 		select {
 		case <-ctx.Done():
+			close(jobs)
+			wg.Wait()
 			return
-		case <-collectTick.C:
-			err = agentService.Collect()
-			if err != nil {
-				logger.
-					Fatal().
-					Err(err).
-					Msg("collect error")
-			}
 		case <-reportTick.C:
-			agentService.SendBatch(ctx)
+			jobs <- agentService.Snapshot(ctx)
 		}
 	}
 }

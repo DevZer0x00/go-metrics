@@ -38,29 +38,11 @@ func TestMetricAgentCollect(t *testing.T) {
 	logger := zerolog.New(io.Discard)
 
 	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, "", &logger)
-	metricsAgent.Collect()
-	assert.Equal(t, int64(1), metricsAgent.pollCount)
-	assert.Len(t, metricsAgent.metrics, 27)
-	assert.NotEmpty(t, metricsAgent.randomValue)
-}
+	err := metricsAgent.CollectMemMetrics(t.Context())
+	require.NoError(t, err)
 
-func TestMetricAgentResetAfterSend(t *testing.T) {
-	httpTestClient := newTestClient(func(req *http.Request) (*http.Response, error) {
-		t.Fatal("should not be called")
-
-		return &http.Response{}, nil
-	})
-	client := resty.NewWithClient(httpTestClient)
-
-	logger := zerolog.New(io.Discard)
-
-	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, "", &logger)
-	metricsAgent.Collect()
-	metricsAgent.resetAfterSend()
-
-	assert.Equal(t, int64(0), metricsAgent.pollCount)
-	assert.Len(t, metricsAgent.metrics, 0)
-	assert.Empty(t, metricsAgent.randomValue)
+	metrics := metricsAgent.Snapshot(t.Context())
+	assert.Len(t, metrics, 29)
 }
 
 func TestMetricAgentSendBatchMetrics(t *testing.T) {
@@ -93,9 +75,11 @@ func TestMetricAgentSendBatchMetrics(t *testing.T) {
 	logger := zerolog.New(io.Discard)
 
 	metricsAgent := NewMetricsAgent(client, &config.ServerAddr{Addr: "localhost"}, "", &logger)
-	metricsAgent.Collect()
-	metricsAgent.SendBatch(t.Context())
+	err := metricsAgent.CollectMemMetrics(t.Context())
+	require.NoError(t, err)
 
-	assert.Equal(t, int64(0), metricsAgent.pollCount)
+	err = metricsAgent.SendReports(t.Context(), metricsAgent.Snapshot(t.Context()))
+	require.NoError(t, err)
+
 	assert.Equal(t, 1, counter)
 }
