@@ -25,6 +25,7 @@ func RunServer(ctx context.Context, environments []string, arguments []string, l
 		Info().
 		Bool("restoreOnStart", cfg.Persistence.File.RestoreOnStart).
 		Str("storageFilePath", cfg.Persistence.File.StorageFilePath).
+		Str("hashKey", cfg.HeaderHashKey).
 		Msg("starting server")
 
 	db, err := sql.Open("pgx", cfg.Persistence.Database.DSN)
@@ -48,7 +49,7 @@ func RunServer(ctx context.Context, environments []string, arguments []string, l
 	defer metricsService.Close(ctx)
 
 	pinger := service.PingerFactory(db, cfg.Persistence)
-	router := routes.NewRouter(metricsService, pinger, logger)
+	router := routes.NewRouter(metricsService, cfg.HeaderHashKey, pinger, logger)
 
 	server := &http.Server{
 		Addr:    cfg.Addr.Addr,

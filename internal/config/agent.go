@@ -16,9 +16,11 @@ type ReportConfig struct {
 }
 
 type AgentConfig struct {
-	ServerAddr *ServerAddr
-	Poll       *PollConfig
-	Report     *ReportConfig
+	ServerAddr    *ServerAddr
+	Poll          *PollConfig
+	Report        *ReportConfig
+	HeaderHashKey string `env:"KEY"`
+	RateLimit     uint64 `env:"RATE_LIMIT"`
 }
 
 func ParseAgentOptions(environments []string, arguments []string) (*AgentConfig, error) {
@@ -32,6 +34,8 @@ func ParseAgentOptions(environments []string, arguments []string) (*AgentConfig,
 		Report: &ReportConfig{
 			Interval: 10,
 		},
+		HeaderHashKey: "",
+		RateLimit:     1,
 	}
 
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
@@ -39,6 +43,8 @@ func ParseAgentOptions(environments []string, arguments []string) (*AgentConfig,
 	fs.StringVar(&cfg.ServerAddr.Addr, "a", cfg.ServerAddr.Addr, "address to send metrics")
 	fs.Uint64Var(&cfg.Report.Interval, "r", cfg.Report.Interval, "how often to report metrics (second)")
 	fs.Uint64Var(&cfg.Poll.Interval, "p", cfg.Poll.Interval, "how often to poll metrics (second)")
+	fs.StringVar(&cfg.HeaderHashKey, "k", cfg.HeaderHashKey, "header hash key")
+	fs.Uint64Var(&cfg.RateLimit, "l", cfg.RateLimit, "send rate limit")
 
 	err := fs.Parse(arguments)
 	if err != nil {
