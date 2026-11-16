@@ -45,6 +45,7 @@ func HashCheckerMiddleware(hashKey string) func(next http.Handler) http.Handler 
 
 			if requestHash != hex.EncodeToString(hasher.Sum(nil)) {
 				http.Error(w, "hash check fail", http.StatusBadRequest)
+				return
 			}
 
 			next.ServeHTTP(

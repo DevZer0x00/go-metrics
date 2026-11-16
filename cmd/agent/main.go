@@ -43,9 +43,7 @@ func main() {
 
 	wg := sync.WaitGroup{}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		collectTick := time.NewTicker(time.Duration(cfg.Poll.Interval) * time.Second)
 		defer collectTick.Stop()
 
@@ -63,11 +61,9 @@ func main() {
 				}
 			}
 		}
-	}()
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		collectTick := time.NewTicker(time.Duration(cfg.Poll.Interval) * time.Second)
 		defer collectTick.Stop()
 
@@ -85,12 +81,12 @@ func main() {
 				}
 			}
 		}
-	}()
+	})
 
 	jobs := make(chan []*model.Metric, cfg.RateLimit)
 
 	for i := uint64(0); i < cfg.RateLimit; i++ {
-		go func() {
+		wg.Go(func() {
 			defer wg.Done()
 
 			for {
@@ -111,7 +107,7 @@ func main() {
 					}
 				}
 			}
-		}()
+		})
 	}
 
 	reportTick := time.NewTicker(time.Duration(cfg.Report.Interval) * time.Second)

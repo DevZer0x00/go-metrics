@@ -110,7 +110,7 @@ func (collector *collector) CollectGopsutilMetrics(ctx context.Context) error {
 	_ = collector.storage.Save(ctx, totalMem)
 
 	freeMem, _ := collector.storage.GetOrRegister(ctx, model.Gauge, "FreeMemory")
-	freeMem.UpdateValue(float64(vmStat.Total))
+	freeMem.UpdateValue(float64(vmStat.Free))
 	_ = collector.storage.Save(ctx, freeMem)
 
 	cpusUtilization, err := cpu.Percent(0, true)
