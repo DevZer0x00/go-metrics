@@ -40,7 +40,7 @@ func (ms *MemStorage) GetOrRegister(ctx context.Context, mtype, name string) (*m
 	metrics, ok := ms.getMetricMapByType(mtype)[hash]
 	if !ok {
 		metrics = model.NewMetric(name, mtype)
-		err = ms.Save(context.TODO(), metrics)
+		err = ms.Save(ctx, metrics)
 		if err != nil {
 			return nil, err
 		}

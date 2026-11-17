@@ -51,6 +51,20 @@ func (metric *Metric) Hash() string {
 	return metric.hash
 }
 
+func (metric *Metric) Clone() *Metric {
+	metricCopy := NewMetric(metric.ID, metric.MType)
+	switch metric.MType {
+	case Counter:
+		delta := *metric.Delta
+		metricCopy.Delta = &delta
+	case Gauge:
+		value := *metric.Value
+		metricCopy.Value = &value
+	}
+
+	return metricCopy
+}
+
 func NewMetric(id string, mtype string) *Metric {
 	metric := &Metric{
 		ID:    id,

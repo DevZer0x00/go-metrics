@@ -10,13 +10,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewRouter(metricsService *service.MetricsService, pinger service.Pinger, logger *zerolog.Logger) *chi.Mux {
+func NewRouter(metricsService *service.MetricsService, hashKey string, pinger service.Pinger, logger *zerolog.Logger) *chi.Mux {
 	updateHandler := handler.NewUpdateMetricsHandler(metricsService, logger)
 	getHandler := handler.NewGetMetricsHandler(metricsService, logger)
 	systemHandler := handler.NewSystemHandler(pinger, logger)
 
 	router := chi.NewRouter()
 	router.Use(
+		middleware.HashCheckerMiddleware(hashKey),
 		middleware.GzipEncodedMiddleware(logger),
 		middleware.LoggingMiddleware(logger),
 		coreMiddleware.Compress(5, "text/html", "application/json"),

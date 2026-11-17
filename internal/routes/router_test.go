@@ -105,7 +105,7 @@ func TestUpdateFromPathHandlerParameters(t *testing.T) {
 			)
 			metricsService := service.NewMetricsService(storage, memStoragePersister, &logger)
 
-			r := NewRouter(metricsService, &service.NopPinger{}, &logger)
+			r := NewRouter(metricsService, "", &service.NopPinger{}, &logger)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -257,7 +257,7 @@ func TestUpdateFromJSONHandlerFunc(t *testing.T) {
 				)
 				metricsService := service.NewMetricsService(storage, memStoragePersister, &logger)
 
-				r := NewRouter(metricsService, &service.NopPinger{}, &logger)
+				r := NewRouter(metricsService, "", &service.NopPinger{}, &logger)
 				recorder := httptest.NewRecorder()
 				r.ServeHTTP(recorder, request)
 
@@ -411,7 +411,7 @@ func TestUpdatesFromJSONHandlerFunc(t *testing.T) {
 				)
 				metricsService := service.NewMetricsService(storage, memStoragePersister, &logger)
 
-				r := NewRouter(metricsService, &service.NopPinger{}, &logger)
+				r := NewRouter(metricsService, "", &service.NopPinger{}, &logger)
 				recorder := httptest.NewRecorder()
 				r.ServeHTTP(recorder, request)
 
@@ -511,7 +511,7 @@ func TestGetMetricHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.Path, nil)
 			recorder := httptest.NewRecorder()
 
-			r := NewRouter(metricsService, &service.NopPinger{}, &logger)
+			r := NewRouter(metricsService, "", &service.NopPinger{}, &logger)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -635,7 +635,7 @@ func TestGetMetricValueHandler(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 
-			r := NewRouter(metricsService, &service.NopPinger{}, &logger)
+			r := NewRouter(metricsService, "", &service.NopPinger{}, &logger)
 			r.ServeHTTP(recorder, request)
 
 			response := recorder.Result()
@@ -691,7 +691,7 @@ func TestAllMetricsHandler(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 
-	r := NewRouter(metricsService, &service.NopPinger{}, &logger)
+	r := NewRouter(metricsService, "", &service.NopPinger{}, &logger)
 	r.ServeHTTP(recorder, request)
 
 	response := recorder.Result()

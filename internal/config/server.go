@@ -27,8 +27,9 @@ type ServerDatabasePersistense struct {
 }
 
 type ServerConfig struct {
-	Addr        *ServerAddr
-	Persistence *ServerPersistence
+	Addr          *ServerAddr
+	Persistence   *ServerPersistence
+	HeaderHashKey string `env:"KEY"`
 }
 
 func ParseServerOptions(environments []string, arguments []string) (*ServerConfig, error) {
@@ -56,6 +57,8 @@ func ParseServerOptions(environments []string, arguments []string) (*ServerConfi
 	fs.BoolVar(&cfg.Persistence.File.RestoreOnStart, "r", cfg.Persistence.File.RestoreOnStart, "restore metrics on start")
 
 	fs.StringVar(&cfg.Persistence.Database.DSN, "d", cfg.Persistence.Database.DSN, "database connection string")
+
+	fs.StringVar(&cfg.HeaderHashKey, "k", cfg.HeaderHashKey, "header hash key")
 
 	err := fs.Parse(arguments)
 	if err != nil {

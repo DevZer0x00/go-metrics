@@ -29,6 +29,8 @@ func TestParseAgentCliOptions(t *testing.T) {
 				Report: &ReportConfig{
 					Interval: 10,
 				},
+				HeaderHashKey: "",
+				RateLimit:     1,
 			},
 			HasError: false,
 		},
@@ -42,6 +44,10 @@ func TestParseAgentCliOptions(t *testing.T) {
 				"100",
 				"-p",
 				"200",
+				"-k",
+				"key",
+				"-l",
+				"10",
 			},
 			Config: &AgentConfig{
 				ServerAddr: &ServerAddr{
@@ -53,6 +59,8 @@ func TestParseAgentCliOptions(t *testing.T) {
 				Report: &ReportConfig{
 					Interval: 100,
 				},
+				HeaderHashKey: "key",
+				RateLimit:     10,
 			},
 			HasError: false,
 		},
@@ -76,6 +84,8 @@ func TestParseAgentCliOptions(t *testing.T) {
 				"ADDRESS=127.0.0.1",
 				"REPORT_INTERVAL=2",
 				"POLL_INTERVAL=3",
+				"KEY=key",
+				"RATE_LIMIT=4",
 			},
 			Arguments: []string{
 				"-a",
@@ -84,6 +94,10 @@ func TestParseAgentCliOptions(t *testing.T) {
 				"100",
 				"-p",
 				"200",
+				"-k",
+				"test",
+				"-l",
+				"10",
 			},
 			Config: &AgentConfig{
 				ServerAddr: &ServerAddr{
@@ -95,6 +109,8 @@ func TestParseAgentCliOptions(t *testing.T) {
 				Report: &ReportConfig{
 					Interval: 2,
 				},
+				HeaderHashKey: "key",
+				RateLimit:     4,
 			},
 			HasError: false,
 		},
